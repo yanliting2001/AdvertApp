@@ -20,12 +20,15 @@ import com.ljy.devring.DevRing;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class AdPlayListManager {
     private final String TAG = "AdPlayListManager";
     private volatile static AdPlayListManager mPlayListInstance = null;
+    private Map<Long, List<PlayingAdvert>> mAdvertMap = new HashMap<>();
     private List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
     private List<PlayingAdvert> adurls_local = new ArrayList<PlayingAdvert>();
     private AdListEventListener mAdListEventListener = null;
@@ -43,10 +46,10 @@ public class AdPlayListManager {
     }
     public boolean init(){
         boolean res = false;
-        String jsondata = DevRing.cacheManager().diskCache("advertList").getString("playList");
+        String jsondata = DevRing.cacheManager().diskCache("advertMap").getString("playMap");
         Gson gson = new Gson();
         if (jsondata!=null) {
-            adurls = gson.fromJson(jsondata, new TypeToken<List<PlayingAdvert>>() {}.getType());
+            mAdvertMap = gson.fromJson(jsondata, new TypeToken<Map<Long,List<PlayingAdvert>>>() {}.getType());
         }
         File path = new File("/system/media/advertList");
         if(path.exists()) {
@@ -64,24 +67,28 @@ public class AdPlayListManager {
     public void  registerListene(AdListEventListener listener){
         if(listener!=null) mAdListEventListener = listener;
     }
-    public boolean updatePlayList( List<PlayingAdvert> urls){
+    public boolean updatePlayList( Map<Long, List<PlayingAdvert>> adMap){
         boolean res = true;
         lock.lock();
+        mAdvertMap = adMap;
+        /*
         adurls.clear();
         for(int i=0;i<urls.size();i++){
             adurls.add(urls.get(i));
         }
+        */
         lock.unlock();
         return res;
     }
 
-    public  String  getValidPlayUrl(int playindex) {
+    public  String  getValidPlayUrl(Long positionId,int playindex) {
         String url=null;
         lock.lock();
+        adurls = mAdvertMap.get(positionId);
         Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
         Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
         boolean urlvalid = false;
-        if(adurls.size()>0) {
+        if(adurls!=null && adurls.size()>0) {
             url = findPlayUrl(playindex);
             if(url!=null && !url.isEmpty()) {
                 urlvalid = true;
@@ -140,9 +147,9 @@ public class AdPlayListManager {
 
     public void saveAdvertVersion(AdvertPosition advertPosition) {
         Gson gson = new Gson();
-        String str = gson.toJson(adurls);
-        Log.i(TAG, "save advertlist = " + str);
-        DevRing.cacheManager().diskCache("advertList").put("playList", str);
+        String str = gson.toJson(mAdvertMap);
+        Log.i(TAG, "save advertMap = " + str);
+        DevRing.cacheManager().diskCache("advertMap").put("playMap", str);
 
         AdvertVersion.setAdVersion(advertPosition.getId().intValue(), advertPosition.getVersion());
         if(mAdListEventListener!=null) {

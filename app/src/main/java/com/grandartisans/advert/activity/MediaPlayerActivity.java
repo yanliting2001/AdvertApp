@@ -430,7 +430,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private void initPlayer(){
         initFirstPlayer();
-        String url = mPlayListManager.getValidPlayUrl(playindex);
+        String url = mPlayListManager.getValidPlayUrl(Long.valueOf(0),playindex);
 		mMediaPlayer.reset();
         if(url!=null && url.length()>0) {
             startPlay(url);
@@ -447,7 +447,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				mPlayState = PLAYER_STATE_STOPED;
             }
 			playindex++;
-			String url = mPlayListManager.getValidPlayUrl(playindex);
+			String url = mPlayListManager.getValidPlayUrl(Long.valueOf(0),playindex);
 			Log.i(TAG,"onVideoPlayCompleted validurl  =  " + url);
 			if (url != null && url.length() > 0) {
 				startPlay(url);

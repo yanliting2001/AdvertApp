@@ -101,6 +101,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -155,6 +156,7 @@ public class UpgradeService extends Service {
     private String mUsbPath = "";
     private String mLogPath = "";
 
+    private Map<Long,List<PlayingAdvert>> mAdMap = new HashMap<>();
     private List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
     private String mDeviceId = "";
 
@@ -978,59 +980,64 @@ public class UpgradeService extends Service {
         },null);
     }
     private void updateAdList(AdListHttpResult result){
-            adurls.clear();
+            mAdMap.clear();
             downloadList.clear();
             List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
-            TemplateRegion region = regionList.get(0);
-            Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
-            AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
-            if(advertPositionVo!=null) {
-                List<DateScheduleVo> dateScheduleVos = advertPositionVo.getDateScheduleVos();
-                mAdverPosition = advertPositionVo.getadvertPosition();
-                int size = dateScheduleVos.size();
-                //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, dateScheduleVos));
-                for (int i = 0; i < size; i++) {
-                    DateScheduleVo dateSchedueVo = dateScheduleVos.get(i);
-                    DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
-                    RingLog.d("getAdList Schedue start date = " + dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
-                    List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
-                    for (int j = 0; j < TimeSchedueVos.size(); j++) {
-                        TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(j);
-                        TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
-                        RingLog.d("getAdList Schedue start time = " + timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
-                        List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
-                        for (int k = 0; k < packageAdverts.size(); k++) {
-                            AdvertVo advertVo = packageAdverts.get(k);
-                            Advert advert = advertVo.getAdvert();
-                            RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
-                            List<AdvertFile> fileList = advertVo.getFileList();
-                            for (int l = 0; l < fileList.size(); l++) {
-                                AdvertFile advertFile = fileList.get(l);
-                                DownloadInfo downloadInfo = new DownloadInfo();
-                                downloadInfo.setId(advertFile.getId());
-                                downloadInfo.setFileMd5(advertFile.getFileMd5());
-                                downloadInfo.setUrl(advertFile.getFilePath());
-                                downloadInfo.setName(advertFile.getName());
-                                downloadInfo.setStatus(DownloadInfo.STATUS_NOT_DOWNLOAD);
-                                downloadList.add(downloadInfo);
+            for(int ii=0;ii < regionList.size();ii++) {
+                adurls.clear();
+                TemplateRegion region = regionList.get(ii);
+                Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
+                AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
+                if (advertPositionVo != null) {
+                    List<DateScheduleVo> dateScheduleVos = advertPositionVo.getDateScheduleVos();
+                    mAdverPosition = advertPositionVo.getadvertPosition();
+                    int size = dateScheduleVos.size();
+                    //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, dateScheduleVos));
+                    for (int i = 0; i < size; i++) {
+                        DateScheduleVo dateSchedueVo = dateScheduleVos.get(i);
+                        DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
+                        RingLog.d("getAdList Schedue start date = " + dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
+                        List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
+                        for (int j = 0; j < TimeSchedueVos.size(); j++) {
+                            TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(j);
+                            TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
+                            RingLog.d("getAdList Schedue start time = " + timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
+                            List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
+                            for (int k = 0; k < packageAdverts.size(); k++) {
+                                AdvertVo advertVo = packageAdverts.get(k);
+                                Advert advert = advertVo.getAdvert();
+                                RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
+                                List<AdvertFile> fileList = advertVo.getFileList();
+                                for (int l = 0; l < fileList.size(); l++) {
+                                    AdvertFile advertFile = fileList.get(l);
+                                    DownloadInfo downloadInfo = new DownloadInfo();
+                                    downloadInfo.setId(advertFile.getId());
+                                    downloadInfo.setFileMd5(advertFile.getFileMd5());
+                                    downloadInfo.setUrl(advertFile.getFilePath());
+                                    downloadInfo.setName(advertFile.getName());
+                                    downloadInfo.setStatus(DownloadInfo.STATUS_NOT_DOWNLOAD);
+                                    downloadList.add(downloadInfo);
 
 
-                                PlayingAdvert item = new PlayingAdvert();
-                                item.setPath("");
-                                item.setMd5(advertFile.getFileMd5());
-                                item.setAdvertid(advertFile.getAdvertid());
-                                item.setAdPositionID(dateSchedueVo.getDateSchedule().getAdvertPositionId());
-                                item.setTemplateid(region.getTemplateid());
-                                item.setStartDate(dateSchedueVo.getDateSchedule().getStartDate());
-                                item.setEndDate(dateSchedueVo.getDateSchedule().getEndDate());
-                                item.setStartTime(timeScheduleVo.getTimeSchedule().getStartTime()+":00");
-                                item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime()+":00");
-                                adurls.add(item);
+                                    PlayingAdvert item = new PlayingAdvert();
+                                    item.setPath("");
+                                    item.setMd5(advertFile.getFileMd5());
+                                    item.setAdvertid(advertFile.getAdvertid());
+                                    item.setAdPositionID(dateSchedueVo.getDateSchedule().getAdvertPositionId());
+                                    item.setTemplateid(region.getTemplateid());
+                                    item.setStartDate(dateSchedueVo.getDateSchedule().getStartDate());
+                                    item.setEndDate(dateSchedueVo.getDateSchedule().getEndDate());
+                                    item.setStartTime(timeScheduleVo.getTimeSchedule().getStartTime() + ":00");
+                                    item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime() + ":00");
+                                    adurls.add(item);
 
+                                }
                             }
                         }
                     }
+                    mAdMap.put(mAdverPosition.getId(),adurls);
                 }
+
             }
             if(downloadList.size()>0) downloadAdList();
     }
@@ -1146,7 +1153,7 @@ public class UpgradeService extends Service {
             }
         }
         if(finished) {
-            mPlayListManager.updatePlayList(adurls);
+            mPlayListManager.updatePlayList(mAdMap);
             mPlayListManager.saveAdvertVersion(mAdverPosition);
             if(adurls.size()>0) {
                 ReportScheduleVer(adurls.get(0).getTemplateid(),mAdverPosition.getId(), mAdverPosition.getVersion());
