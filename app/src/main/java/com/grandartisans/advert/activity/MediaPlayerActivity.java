@@ -1,11 +1,13 @@
 package com.grandartisans.advert.activity;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import android.app.Activity;
@@ -30,10 +32,15 @@ import android.view.KeyEvent;
 import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+
+import com.bumptech.glide.Glide;
+import com.grandartisans.advert.common.ScheduleTimesCache;
 import com.grandartisans.advert.dbutils.PlayRecord;
 import com.grandartisans.advert.dbutils.dbutils;
+import com.grandartisans.advert.interfaces.AdListEventListener;
 import com.grandartisans.advert.interfaces.ElevatorDoorEventListener;
 import com.grandartisans.advert.interfaces.ElevatorEventListener;
 import com.grandartisans.advert.model.AdvertModel;
@@ -42,9 +49,15 @@ import com.grandartisans.advert.model.entity.event.AppEvent;
 import com.grandartisans.advert.model.entity.post.EventParameter;
 import com.grandartisans.advert.model.entity.post.PlayerStatusParameter;
 import com.grandartisans.advert.model.entity.post.ReportEventData;
+import com.grandartisans.advert.model.entity.res.AdvertFile;
+import com.grandartisans.advert.model.entity.res.AdvertPositionVo;
+import com.grandartisans.advert.model.entity.res.AdvertVo;
+import com.grandartisans.advert.model.entity.res.DateScheduleVo;
 import com.grandartisans.advert.model.entity.res.PowerOnOffData;
 import com.grandartisans.advert.model.entity.res.ReportInfoResult;
+import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TerminalAdvertPackageVo;
+import com.grandartisans.advert.model.entity.res.TimeScheduleVo;
 import com.grandartisans.advert.service.CameraService;
 import com.grandartisans.advert.service.NetworkService;
 import com.grandartisans.advert.service.UpgradeService;
@@ -77,6 +90,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private MediaPlayer mMediaPlayer;
 	private MySurfaceView surface;
 	private SurfaceHolder surfaceHolder;
+    private RelativeLayout relativeLayout;
 	private boolean surfaceDestroyedFlag = true;
 
 	private int surfaceDestroyedCount = 0;
@@ -98,6 +112,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final  int threshold_temperature = 58;
 	private  final int temperature_read_times = 200; //连续获取到温度超过指定值次数大于该值，则认为温度过高了
 	private int temperature_read_count=0;
+	private final int IMAGE_AD_SHOW_DURATION=10*1000;
 
 	private PicoClient pClient= null;
 
@@ -120,6 +135,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int START_FIRST_RECORD_CMD = 100022;
 
     private final int START_CAMERACHECK_CMD = 100023;
+
+    private final int UPDATE_IMAGE_AD_CMD = 100024;
 
 	private String mMode ="";
 
@@ -152,6 +169,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	AdPlayListManager mPlayListManager = null;
 
+    private TerminalAdvertPackageVo mTerminalAdvertPackageVo;
+
 	private Handler mHandler = new Handler()
 	{
 		public void handleMessage(Message paramMessage)
@@ -162,7 +181,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					setScreenOn();
 					break;
 				case START_PLAYER_CMD:
-					initPlayer();
+					//initPlayer();
+					initFirstPlayer();
+                    initAdFiles();
 					break;
 				case START_OPEN_SERIALPORT:
 					mElevatorDoorManager.openSerialPort();
@@ -197,6 +218,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 case START_CAMERACHECK_CMD:
                     checkCamera();
                     break;
+				case UPDATE_IMAGE_AD_CMD:
+					ImageView imageview = (ImageView)paramMessage.obj;
+					showImageWithIndex(imageview);
+					savePlayRecord((Long)imageview.getTag(R.id.image_key));
 				default:
 					break;
 			}
@@ -299,6 +324,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		keepScreenWake();
 
 		mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
+		mPlayListManager.registerListene(mAdListEventListener);
 
 		handler = new Handler();
 		mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*10);
@@ -348,6 +374,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initView(){
+        // 判断有无排期模板缓存 有则进行排板 无则使用默认模板
+        TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
+        relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
 		surface = (MySurfaceView) findViewById(R.id.surface);
 
 		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
@@ -356,6 +385,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 		mCameraView = (SrsCameraView) findViewById(R.id.glsurfaceview_camera);
 		mCameraView.setVisibility(View.GONE);
+
+        if (tapvo != null) {
+            RingLog.d(TAG, "the schedule times is not none, let init it");
+            mTerminalAdvertPackageVo = tapvo;
+            initAdView();
+        }else {
+            RingLog.d(TAG, "the schedule times is none, let use default view");
+        }
 	}
 	/*
 	 * 初始化播放首段视频的player
@@ -428,9 +465,28 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}
 	}
 
-	private void initPlayer(){
-        initFirstPlayer();
-        String url = mPlayListManager.getValidPlayUrl(Long.valueOf(0),playindex);
+	private void initAdFiles(){
+        int childCount = relativeLayout.getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            if (relativeLayout.getChildAt(i) instanceof ImageView) {
+                ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
+                showImageWithIndex(imageView);
+            } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
+                MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
+				Long posid;
+                if(surfaceView.getTag()!=null){
+                	 posid = (Long)surfaceView.getTag();
+				}else {
+                	 posid = Long.valueOf(0);
+				}
+                initPlayer(posid);
+            }
+
+        }
+    }
+
+	private void initPlayer(Long posid){
+        String url = mPlayListManager.getValidPlayUrl(posid);
 		mMediaPlayer.reset();
         if(url!=null && url.length()>0) {
             startPlay(url);
@@ -439,15 +495,15 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void onVideoPlayCompleted() {
 		//get next player
 		Log.i(TAG,"onVideoPlayCompleted format  isPowerOff =  " + isPowerOff);
-		savePlayRecord();
+		Long posid = (Long)surface.getTag();
+		savePlayRecord(posid);
 		if(!isPowerOff) {
 		    if(mMediaPlayer!=null) {
                 mMediaPlayer.stop();
                 mMediaPlayer.reset();
 				mPlayState = PLAYER_STATE_STOPED;
             }
-			playindex++;
-			String url = mPlayListManager.getValidPlayUrl(Long.valueOf(0),playindex);
+			String url = mPlayListManager.getValidPlayUrl(posid);
 			Log.i(TAG,"onVideoPlayCompleted validurl  =  " + url);
 			if (url != null && url.length() > 0) {
 				startPlay(url);
@@ -625,8 +681,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		intent.setComponent(cn);
 		context.startActivity(intent);
 	}
-	private void savePlayRecord() {
-		PlayingAdvert item = mPlayListManager.getPlayingAd(playindex);
+	private void savePlayRecord(Long posid) {
+		PlayingAdvert item = mPlayListManager.getPlayingAd(posid);
 		if(item!=null) {
 			PlayRecord record = new PlayRecord();
 			record.setTpid(item.getTemplateid());
@@ -782,11 +838,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					RingLog.d(TAG, "Player is resumed, now resume record");
 					mPublisher.resumeRecord();
 				}
-			}
-			if(surfaceDestroyedFlag) {
-				surfaceDestroyedCount +=1;
-				initView();
-				initPlayer();
 			}
 		}
 	}
@@ -987,6 +1038,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				break;
 		}
     }
+
+	AdListEventListener mAdListEventListener = new AdListEventListener() {
+		@Override
+		public void onAdListUpdate() {
+			removeImageView();
+			TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
+			if (tapvo != null) {
+				RingLog.d(TAG, "the schedule times is not none, let init it");
+				mTerminalAdvertPackageVo = tapvo;
+				initAdView();
+				initAdFiles();
+			}
+		}
+	};
 
 	ElevatorEventListener mElevatorEventListener =new  ElevatorEventListener(){
 		@Override
@@ -1203,6 +1268,87 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		initCameraView();
 		if (mCameraService != null) {
 			mCameraService.startCameraRecord();
+		}
+	}
+
+    private TerminalAdvertPackageVo getScheduleTimesCache() {
+        return ScheduleTimesCache.get();
+    }
+    private void initAdView() {
+        RingLog.i("Use schedule times");
+        List<TemplateRegion> regionList = mTerminalAdvertPackageVo.getTemplate().getRegionList();
+        Map<String, Long> relationMap = mTerminalAdvertPackageVo.getRelationMap();
+        int imageIndexOffset = 0;
+        if(regionList!=null) {
+            for(int i=0;i<regionList.size();i++){
+                TemplateRegion region = regionList.get(i);
+                String regLocation = region.getLocation();
+                String[] regLocations = regLocation.split(",");
+                String videoType = region.getVideoType();
+                int regWidth = region.getWidth();
+                int regHeight = region.getHeight();
+                int marginLeft = Integer.valueOf(regLocations[0]);
+                int marginTop = Integer.valueOf(regLocations[1]);
+                Long adType = Long.valueOf(videoType);
+                Long adPosId = relationMap.get(region.getIdent());
+                set_view_layout(adType, regWidth, regHeight, marginLeft,
+                        marginTop,adPosId);
+            }
+        }
+    }
+
+    private void set_view_layout(long viewType, int width, int height, int left, int top,Long adposid) {
+		/*
+		float scale = (float) 1080 / (float) 768;
+		height = (int) (height * scale);
+		if (top != 0)
+			top = (int) (top * scale);
+		*/
+        RingLog.d(TAG, "set_view_layout viewType = " + viewType + "width = " + width + "height = " + height + "left = " + left + "top = " + top );
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(width, height);
+        layoutParams.setMargins(left, top, 0, 0);
+        if (viewType == 1) {// 图片控件
+            RingLog.d(TAG, "set image view");
+            ImageView imageView = new ImageView(this);
+            imageView.setLayoutParams(layoutParams);
+            imageView.setScaleType(ImageView.ScaleType.FIT_XY);
+            imageView.setTag(R.id.image_key,adposid);
+            relativeLayout.addView(imageView);
+        } else if (viewType == 2) { // 视频控件
+            RingLog.d(TAG, "set surface view");
+            surface.setLayoutParams(layoutParams);
+            surface.requestLayout();
+            surface.setTag(adposid);
+            relativeLayout.requestLayout();
+			/*
+			surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
+			surfaceHolder.addCallback(this);
+			surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+			*/
+        }
+    }
+
+    private void showImageWithIndex(ImageView imageView) {
+		Long posid = (Long)imageView.getTag(R.id.image_key);
+		String path = mPlayListManager.getValidPlayUrl(posid);
+        if (path != null && !path.isEmpty()) {
+            File file = new File(path);
+            Glide.with(getApplicationContext()).load(file).into(imageView);
+        }
+		Message msg = new Message();
+		msg.what = UPDATE_IMAGE_AD_CMD;
+		msg.obj = imageView;
+		mHandler.sendMessageDelayed(msg,IMAGE_AD_SHOW_DURATION);
+    }
+	private void removeImageView() {
+		int childCount = relativeLayout.getChildCount();
+		if (childCount <= 1)
+			return;
+		for (int i = 0; i < childCount; i++) {
+			if (relativeLayout.getChildAt(i) instanceof ImageView) {
+				ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
+				relativeLayout.removeView(imageView);
+			}
 		}
 	}
 }

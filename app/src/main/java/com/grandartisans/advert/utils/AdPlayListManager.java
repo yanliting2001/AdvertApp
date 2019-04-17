@@ -1,6 +1,7 @@
 package com.grandartisans.advert.utils;
 
 import android.content.Context;
+import android.content.Entity;
 import android.util.Log;
 
 import com.google.gson.Gson;
@@ -29,6 +30,7 @@ public class AdPlayListManager {
     private final String TAG = "AdPlayListManager";
     private volatile static AdPlayListManager mPlayListInstance = null;
     private Map<Long, List<PlayingAdvert>> mAdvertMap = new HashMap<>();
+    private Map<Long, Integer> mAdvertIndex = new HashMap<>();
     private List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
     private List<PlayingAdvert> adurls_local = new ArrayList<PlayingAdvert>();
     private AdListEventListener mAdListEventListener = null;
@@ -50,6 +52,10 @@ public class AdPlayListManager {
         Gson gson = new Gson();
         if (jsondata!=null) {
             mAdvertMap = gson.fromJson(jsondata, new TypeToken<Map<Long,List<PlayingAdvert>>>() {}.getType());
+            for (Map.Entry<Long, List<PlayingAdvert>> entry : mAdvertMap.entrySet()) {
+                Long id = entry.getKey();
+                mAdvertIndex.put(id,0);
+            }
         }
         File path = new File("/system/media/advertList");
         if(path.exists()) {
@@ -81,14 +87,17 @@ public class AdPlayListManager {
         return res;
     }
 
-    public  String  getValidPlayUrl(Long positionId,int playindex) {
+    public  String  getValidPlayUrl(Long positionId) {
         String url=null;
         lock.lock();
+        int playindex = 0;
         adurls = mAdvertMap.get(positionId);
-        Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
-        Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
+        if(mAdvertIndex.containsKey(positionId))
+            playindex = mAdvertIndex.get(positionId);
         boolean urlvalid = false;
         if(adurls!=null && adurls.size()>0) {
+            //Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
+            //Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
             url = findPlayUrl(playindex);
             if(url!=null && !url.isEmpty()) {
                 urlvalid = true;
@@ -111,6 +120,7 @@ public class AdPlayListManager {
             playingItem.setAdvertid(id);
             AdvertApp.setPlayingAdvert(playingItem);
         }
+        mAdvertIndex.put(positionId,++playindex);
         lock.unlock();
         return url;
     }
@@ -121,8 +131,8 @@ public class AdPlayListManager {
             int index = playindex % adurls.size();
 
             PlayingAdvert playAdvertItem  = adurls.get(index);
-            Log.i(TAG,"play advertitem "+ playAdvertItem.getPath() + "playindex = " +  playindex + "index = " + index + "path = " + playAdvertItem.getPath());
-            Log.i(TAG,"play advertitem   = " +  playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime()+playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime());
+            //Log.i(TAG,"play advertitem "+ playAdvertItem.getPath() + "playindex = " +  playindex + "index = " + index + "path = " + playAdvertItem.getPath());
+            //Log.i(TAG,"play advertitem   = " +  playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime()+playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime());
             if(playAdvertItem.getPath()!=null && !playAdvertItem.getPath().isEmpty()) {
                 if(playAdvertItem.getStartDate()!=null && !playAdvertItem.getStartDate().isEmpty()) {
                     if (CommonUtil.compareDateState(playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime(), playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime())) {
@@ -145,21 +155,28 @@ public class AdPlayListManager {
         return url;
     }
 
-    public void saveAdvertVersion(AdvertPosition advertPosition) {
+    public void saveAdvertVersion(List<AdvertPosition> advertPositions) {
         Gson gson = new Gson();
         String str = gson.toJson(mAdvertMap);
-        Log.i(TAG, "save advertMap = " + str);
+        //Log.i(TAG, "save advertMap = " + str);
         DevRing.cacheManager().diskCache("advertMap").put("playMap", str);
-
-        AdvertVersion.setAdVersion(advertPosition.getId().intValue(), advertPosition.getVersion());
+        for(int i=0;i<advertPositions.size();i++) {
+            AdvertPosition advertPosition = advertPositions.get(i);
+            AdvertVersion.setAdVersion(advertPosition.getId().intValue(), advertPosition.getVersion());
+        }
         if(mAdListEventListener!=null) {
             mAdListEventListener.onAdListUpdate();
         }
     }
-    public PlayingAdvert getPlayingAd(int playindex){
-        if(adurls.size()>0) {
-            int index = playindex % adurls.size();
-            PlayingAdvert item = adurls.get(index);
+    public PlayingAdvert getPlayingAd(Long posid){
+        int playindex = 0;
+        List<PlayingAdvert> adList  = mAdvertMap.get(posid);
+        if(mAdvertIndex.containsKey(posid))
+            playindex = mAdvertIndex.get(posid);
+        if(playindex>0) playindex--;
+        if(adList!=null && adList.size()>0) {
+            int index = playindex % adList.size();
+            PlayingAdvert item = adList.get(index);
             return item;
         }
         return null;

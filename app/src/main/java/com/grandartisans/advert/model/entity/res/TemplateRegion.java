@@ -78,6 +78,19 @@ public class TemplateRegion  {
      */
     private String location;
 
+    /**
+     * 内容类型 1图片 2视频
+     */
+    private String videoType;
+
+    public String getVideoType() {
+        return videoType;
+    }
+
+    public void setVideoType(String videoType) {
+        this.videoType = videoType;
+    }
+
     private String ident;
 
     public Long getId() {
