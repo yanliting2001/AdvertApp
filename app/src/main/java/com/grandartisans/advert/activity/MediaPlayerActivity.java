@@ -17,6 +17,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Color;
 import android.hardware.Camera;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
@@ -27,12 +28,16 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.PowerManager;
 
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.SurfaceHolder;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -58,6 +63,7 @@ import com.grandartisans.advert.model.entity.res.ReportInfoResult;
 import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TerminalAdvertPackageVo;
 import com.grandartisans.advert.model.entity.res.TimeScheduleVo;
+import com.grandartisans.advert.service.AdvertInfoService;
 import com.grandartisans.advert.service.CameraService;
 import com.grandartisans.advert.service.NetworkService;
 import com.grandartisans.advert.service.UpgradeService;
@@ -69,6 +75,8 @@ import com.grandartisans.advert.utils.ElevatorStatusManager;
 import com.grandartisans.advert.R;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
+import com.grandartisans.advert.utils.ViewUtils;
+import com.grandartisans.advert.view.MarqueeTextView;
 import com.grandartisans.advert.view.MySurfaceView;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.http.support.observer.CommonObserver;
@@ -91,6 +99,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private MySurfaceView surface;
 	private SurfaceHolder surfaceHolder;
     private RelativeLayout relativeLayout;
+	private MarqueeTextView marqueeTextView;
+	private LinearLayout linearLayoutText;
+	private ImageView imageViewWeather;
+	private TextView textViewTime;
+	private TextView textViewTemp;
+	private TextView textViewTempCode;
 	private boolean surfaceDestroyedFlag = true;
 
 	private int surfaceDestroyedCount = 0;
@@ -134,9 +148,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int SET_LIFT_STOP_CMD = 100021;
 	private final int START_FIRST_RECORD_CMD = 100022;
 
-    private final int START_CAMERACHECK_CMD = 100023;
+	private final int START_CAMERACHECK_CMD = 100023;
+	private final int INIT_INFO_SERVICE_CMD = 100024;
+	private final int SET_ADVERT_INFO_CMD = 100025;
+	private final int UPDATE_ADVERT_WEATHER_CMD = 100026;
+	private final int REFRESH_ADVERT_INFO_CMD = 100027;
 
-    private final int UPDATE_IMAGE_AD_CMD = 100024;
+    private final int UPDATE_IMAGE_AD_CMD = 100028;
 
 	private String mMode ="";
 
@@ -151,8 +169,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	public static SrsPublisher mPublisher;
 	private CameraService mCameraService;
 	private NetworkService mNetworkService;
+	private AdvertInfoService mInfoService;
 	private ServiceConnection mCamServiceConn;
 	private ServiceConnection mNetServiceConn;
+	private ServiceConnection mInfoServiceConn;
 	private float mInitZ = 0;
 	private ElevatorStatusManager mElevatorStatusManager;
 	private ElevatorDoorManager mElevatorDoorManager;
@@ -222,6 +242,19 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					ImageView imageview = (ImageView)paramMessage.obj;
 					showImageWithIndex(imageview);
 					savePlayRecord((Long)imageview.getTag(R.id.image_key));
+					break;
+				case INIT_INFO_SERVICE_CMD:
+					initAdInfoService();
+					break;
+				case SET_ADVERT_INFO_CMD:
+					setAdInfo();
+					break;
+				case UPDATE_ADVERT_WEATHER_CMD:
+					updateAdWeather();
+					break;
+				case REFRESH_ADVERT_INFO_CMD:
+					refreshAdInfo();
+					break;
 				default:
 					break;
 			}
@@ -393,6 +426,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         }else {
             RingLog.d(TAG, "the schedule times is none, let use default view");
         }
+		marqueeTextView = (MarqueeTextView) findViewById(R.id.tv_scroll);
+		marqueeTextView.setVisibility(View.GONE);
+		linearLayoutText = (LinearLayout) findViewById(R.id.ll_info);
+		linearLayoutText.setVisibility(View.GONE);
+		imageViewWeather = (ImageView) findViewById(R.id.icon_weather);
+		textViewTime = (TextView) findViewById(R.id.tv_time);
+		textViewTemp = (TextView) findViewById(R.id.tv_temperature);
+		textViewTempCode = (TextView) findViewById(R.id.tv_temperature_code);
 	}
 	/*
 	 * 初始化播放首段视频的player
@@ -663,6 +704,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			unbindService(mCamServiceConn);
 			IsCameraServiceOn = false;
 		}
+		unbindService(mInfoServiceConn);
 	}
 
 	private void initTFMini() {
@@ -1034,6 +1076,24 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				mHandler.removeMessages(SET_POWER_ALARM_CMD);
 				ResetPowerOffAlarm(powerOnOffData.getEndTime());
 				ResetPowerOnAlarm(powerOnOffData.getStartTime());
+			case AppEvent.SHOW_ADVERT_INFO:
+				if (mInfoService == null) {
+					mHandler.sendEmptyMessage(INIT_INFO_SERVICE_CMD);
+				} else {
+					mHandler.sendEmptyMessage(REFRESH_ADVERT_INFO_CMD);
+				}
+				break;
+			case AppEvent.SET_ADVERT_INFO:
+				mHandler.sendEmptyMessage(SET_ADVERT_INFO_CMD);
+				break;
+			case AppEvent.UPDATE_ADVERT_WEATHER:
+				mHandler.sendEmptyMessage(UPDATE_ADVERT_WEATHER_CMD);
+				break;
+			case AppEvent.CLOSE_ADVERT_INFO:
+				marqueeTextView.setVisibility(View.GONE);
+				linearLayoutText.setVisibility(View.GONE);
+				mInfoService.closeTimer();
+				break;
 			default:
 				break;
 		}
@@ -1350,5 +1410,108 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				relativeLayout.removeView(imageView);
 			}
 		}
+	}
+	private void initAdInfoService(){
+		initAdInfoServiceConn();
+		Intent intent = new Intent(MediaPlayerActivity.this, AdvertInfoService.class);
+		startService(intent);
+		bindService(intent, mInfoServiceConn, getApplicationContext().BIND_AUTO_CREATE);
+	}
+
+	private void initAdInfoServiceConn() {
+		mInfoServiceConn = new ServiceConnection() {
+			@Override
+			public void onServiceConnected(ComponentName name, IBinder service) {
+				Log.d(TAG, "Advert info service connected");
+				AdvertInfoService.InfoBinder binder = (AdvertInfoService.InfoBinder) service;
+				mInfoService = binder.getService();
+			}
+
+			@Override
+			public void onServiceDisconnected(ComponentName name) {
+				Log.d(TAG, "Advert info service disconnected");
+				mInfoService = null;
+			}
+		};
+	}
+
+	private void setAdInfo() {
+		// 获取预设广告信息
+		String backColor = DevRing.cacheManager().spCache("AdvertInfoResult").getString("backColor", "#000000");
+		String fontColor = DevRing.cacheManager().spCache("AdvertInfoResult").getString("fontColor", "#ffffff");
+
+		// 设置滚动信息
+		setAdInfoScroll(backColor, fontColor);
+
+		// 设置时间天气
+		setAdInfoText(backColor, fontColor);
+    }
+
+    private void updateAdWeather() {
+		Long celcius = DevRing.cacheManager().spCache("AdvertWeatherResult").getLong("celcius", 15);
+		Long weatherType = DevRing.cacheManager().spCache("AdvertWeatherResult").getLong("type", 0);
+		textViewTemp.setText(String.valueOf(celcius));
+		ViewUtils.setWeatherIcon(getResources(), imageViewWeather, weatherType);
+	}
+
+	private void refreshAdInfo() {
+		if (mInfoService != null) {
+			mInfoService.refreshAdvertInfo();
+		}
+	}
+
+    private void setAdInfoScroll(String backColor, String fontColor) {
+		String writingText = DevRing.cacheManager().spCache("AdvertInfoResult").getString("writing", "");
+		Long velocity = DevRing.cacheManager().spCache("AdvertInfoResult").getLong("velocity", 1);
+
+		// 获取屏幕管理器
+		Display display = getWindowManager().getDefaultDisplay();
+		DisplayMetrics metrics = new DisplayMetrics();
+		display.getMetrics(metrics);
+		int win_width = metrics.widthPixels;
+		int win_height = metrics.heightPixels;
+		ViewGroup.MarginLayoutParams marginLayoutParams = new ViewGroup.MarginLayoutParams(marqueeTextView.getLayoutParams());
+		// 设置滚动区域位置
+		marginLayoutParams.setMargins(0, win_height - 50, 0, 0);
+		RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(marginLayoutParams);
+		// 设置滚动区域高度
+		layoutParams.height = 50;
+		// 设置滚动区域宽度
+		layoutParams.width = win_width;
+
+		// 设置MarqueeTextView参数
+		marqueeTextView.setLayoutParams(layoutParams);
+		marqueeTextView.setBackgroundColor(Color.parseColor(backColor));
+		marqueeTextView.setTextColor(Color.parseColor(fontColor));
+		marqueeTextView.setScrollWidth(win_width);
+		marqueeTextView.setCoordinateX(win_width);
+		marqueeTextView.setCoordinateY(40);
+		marqueeTextView.setSpeed(velocity.intValue());
+		marqueeTextView.setText(writingText);
+		marqueeTextView.setVisibility(View.VISIBLE);
+	}
+
+	private void setAdInfoText(String backColor, String fontColor) {
+		Long isShowTime = DevRing.cacheManager().spCache("AdvertInfoResult").getLong("vTime", 1);
+		Long isShowWeather = DevRing.cacheManager().spCache("AdvertInfoResult").getLong("weather", 1);
+		Long weatherType = DevRing.cacheManager().spCache("AdvertWeatherResult").getLong("type", 0);
+		Long celcius = DevRing.cacheManager().spCache("AdvertWeatherResult").getLong("celcius", 15);
+		if (isShowTime != 1) {
+			textViewTime.setVisibility(View.GONE);
+		} else {
+			textViewTime.setVisibility(View.VISIBLE);
+		}
+		if (isShowWeather != 1) {
+			imageViewWeather.setVisibility(View.GONE);
+		} else {
+			imageViewWeather.setVisibility(View.VISIBLE);
+		}
+		ViewUtils.setWeatherIcon(getResources(), imageViewWeather, weatherType);
+		textViewTime.setTextColor(Color.parseColor(fontColor));
+		textViewTemp.setText(String.valueOf(celcius));
+		textViewTemp.setTextColor(Color.parseColor(fontColor));
+		textViewTempCode.setTextColor(Color.parseColor(fontColor));
+		linearLayoutText.setVisibility(View.VISIBLE);
+		linearLayoutText.setBackgroundColor(Color.parseColor(backColor));
 	}
 }
