@@ -8,6 +8,8 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.text.format.Time;
+import android.util.Log;
 
 import com.alibaba.sdk.android.oss.ClientConfiguration;
 import com.alibaba.sdk.android.oss.ClientException;
@@ -28,9 +30,13 @@ import net.ossrs.yasea.SrsCameraView;
 import net.ossrs.yasea.SrsPublisher;
 import net.ossrs.yasea.SrsRecordHandler;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.SocketException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -65,6 +71,9 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     private static final int START_RTMP = 100000;
     private static final int START_RECORD = 100001;
     private static final int UPLOAD_FILE = 100002;
+    private static final int RESTART_RECORD = 100003;
+
+    private boolean haveUdisk = false;
 
     private CamBinder mCamBinder = new CamBinder();
     private Handler handler;
@@ -80,6 +89,9 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
                     break;
                 case UPLOAD_FILE:
                     uploadRecord();
+                    break;
+                case RESTART_RECORD:
+                    restartCameraRecord();
                     break;
             }
             super.handleMessage(paramMessage);
@@ -102,7 +114,11 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         handler = new Handler();
-        recordPath = getApplicationContext().getExternalFilesDir(null).getPath();
+        if(haveUdisk()){
+            recordPath = "/storage/udisk0/";
+        }else {
+            recordPath = getApplicationContext().getExternalFilesDir(null).getPath();
+        }
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -140,8 +156,13 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
             cameraNeedStop = false;
         } else {
             RingLog.d(TAG, "Now stop record, upload it to server");
-            recordHasFinished = true;
-            mHandler.sendEmptyMessage(UPLOAD_FILE);
+            //destroyTimer();
+            if(haveUdisk()) {
+                mHandler.sendEmptyMessageDelayed(RESTART_RECORD,3*1000);
+            }else {
+                recordHasFinished = true;
+                mHandler.sendEmptyMessage(UPLOAD_FILE);
+            }
         }
         if (MediaPlayerActivity.firstStartRecord) {
             MediaPlayerActivity.firstStartRecord = false;
@@ -221,6 +242,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
 
     public void startCameraRecord() {
         RingLog.d(TAG, "Open Record Camera");
+        if(haveUdisk()) removeOlderFiles();
         deviceId = SystemInfoManager.readFromNandkey("usid");
         if (deviceId == null) {
             deviceId = "G50234001485210002";
@@ -234,11 +256,18 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
             RingLog.d(TAG, "Camera Id is: " + mPublisher.getCamraId());
             RingLog.d(TAG, "Start record");
             // 开始录像
-            mPublisher.startRecord(recordPath + "/" + deviceId + ".mp4");
+            String fileName = "";
+            if(haveUdisk()) {
+                fileName = recordPath + deviceId + getFileName() + ".mp4";
+            }else {
+                fileName = recordPath + "/" + deviceId + ".mp4";
+            }
+            mPublisher.startRecord(fileName);
         }
     }
 
     public void restartCameraRecord() {
+        if(haveUdisk()) removeOlderFiles();
         cameraNeedStop = false;
         if (recordHasFinished) {
             RingLog.d(TAG, "Not need record any more");
@@ -249,7 +278,14 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         if (mPublisher.getCamera() != null) {
             RingLog.d(TAG, "Restart now");
             // 重新开始录像
-            mPublisher.startRecord(recordPath + "/" + deviceId + ".mp4");
+            String fileName = "";
+            if(haveUdisk()) {
+                fileName = recordPath + deviceId + getFileName() + ".mp4";
+            }else {
+                fileName = recordPath + "/" + deviceId + ".mp4";
+            }
+            RingLog.d(TAG, "Start record fileName = " + fileName);
+            mPublisher.startRecord(fileName);
         }
     }
 
@@ -295,10 +331,18 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
      * 初始化Timer
      */
     private void initTimer() {
+        int  stopTime = 0;
+        if(haveUdisk()){
+            stopTime = 60*60;
+            //stopTime = 60*3;
+        }else {
+            stopTime = 60;
+        }
+        final int  stopTimeCount = stopTime;
         mTimerTask = new TimerTask() {
             @Override
             public void run() {
-                if (isRecord && mTimerCount > 60) {
+                if (isRecord && mTimerCount > stopTimeCount) {
                     // 已录制一分钟 停止录像
                     mPublisher.stopRecord();
                     return;
@@ -387,5 +431,36 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         else
             str = Integer.toString(integer);
         return str;
+    }
+
+    public boolean haveUdisk(){
+        File diskFile = new File("/storage/udisk0/.aaasss.ga");
+        if(diskFile.exists()) {
+            RingLog.d(TAG, "recorder have external u disk file");
+            return true;
+        }else {
+            RingLog.d(TAG, "recorder to internal disk");
+            return false;
+        }
+    }
+    private String getFileName(){
+        Time time  =  new Time();
+        time.setToNow();
+        String str_time = time.format("%Y%m%d%H%M%S");
+        return str_time;
+    }
+    private void removeOlderFiles(){
+        File diskFile = new File("/storage/udisk0");
+        if(diskFile.exists()){
+            File[] files = diskFile.listFiles();
+            for (File file : files) {
+                if(file.getAbsolutePath().contains(".mp4")) {
+                    if(file.lastModified() < CommonUtil.getPastDate(7)){
+                        file.delete();
+                    }
+                }
+            }
+
+        }
     }
 }

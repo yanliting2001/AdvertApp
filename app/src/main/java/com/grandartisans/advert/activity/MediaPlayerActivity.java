@@ -464,7 +464,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                 mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
                 mMediaPlayer.start();
-                if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()) {
+                if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()&&!mCameraService.haveUdisk()) {
                     RingLog.d(TAG, "Player is resumed, now resume record");
                     mPublisher.resumeRecord();
                 }
@@ -876,7 +876,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			if (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
 				mMediaPlayer.pause();
 				mPlayState = PLAYER_STATE_PAUSED;
-				if (IsCameraServiceOn && mCameraService.getRecordStatus()) {
+				if (IsCameraServiceOn && mCameraService.getRecordStatus() && !mCameraService.haveUdisk()) {
 					RingLog.d(TAG, "Player is paused, so pause record");
 					mPublisher.pauseRecord();
 				}
@@ -888,7 +888,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			setScreen(1);
 			if (mMediaPlayer != null && mPlayState == PLAYER_STATE_PAUSED) {
 				mMediaPlayer.start();
-				if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()) {
+				if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()&&!mCameraService.haveUdisk()) {
 					RingLog.d(TAG, "Player is resumed, now resume record");
 					mPublisher.resumeRecord();
 				}
@@ -1072,6 +1072,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 				}else if("POWER_ON_ALARM".equals(event.getData())){
 					saveCurrentTime();
+					if (mPublisher != null) {
+						CameraService.cameraNeedStop = true;
+						mPublisher.stopRecord();
+					}
 					CommonUtil.reboot(MediaPlayerActivity.this);
 				}
 				break;
@@ -1264,7 +1268,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private void initService() {
 		initCameraService();
-		initNetworkService();
+		//initNetworkService();
 	}
 
 	private void initCameraService() {

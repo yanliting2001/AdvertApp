@@ -184,6 +184,17 @@ public class CommonUtil {
         return resultBegin > 0 && resultEnd < 0;
     }
 
+    public static Long getPastDate(int past) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.DAY_OF_YEAR, calendar.get(Calendar.DAY_OF_YEAR) - past);
+        Date today = calendar.getTime();
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        String result = format.format(today);
+        Log.d("getPastDate", result);
+        return calendar.getTimeInMillis();
+    }
+
+
     //获取设备唯一ID号
     //需加入<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     //和<uses-permission android:name="android.permission.BLUETOOTH"/>权限
