@@ -1012,13 +1012,15 @@ public class UpgradeService extends Service {
     private void updateAdList(AdListHttpResult result){
             mAdMap.clear();
             downloadList.clear();
-            updateScheduleTimesCache(result);
+
             List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
             mTemplateId = result.getData().getTemplate().getTemplate().getId();
             for(int ii=0;ii < regionList.size();ii++) {
                 List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
                 adurls.clear();
                 TemplateRegion region = regionList.get(ii);
+                if(result.getData().getRelationMap().isEmpty()) return;
+                if(result.getData().getAdvertPositionMap().isEmpty()) return;
                 Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
                 AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
                 AdvertPosition adverPosition =  advertPositionVo.getadvertPosition();
@@ -1077,7 +1079,10 @@ public class UpgradeService extends Service {
                 }
                 mAdMap.put(adverPosition.getId(),adurls);
             }
-            if(downloadList.size()>0) downloadAdList();
+            if(downloadList.size()>0){
+                downloadAdList();
+                updateScheduleTimesCache(result);
+            }
     }
 
     private void updatePlayListFilePath(String path){

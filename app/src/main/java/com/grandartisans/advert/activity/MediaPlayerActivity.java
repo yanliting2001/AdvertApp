@@ -1350,6 +1350,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
         List<TemplateRegion> regionList = mTerminalAdvertPackageVo.getTemplate().getRegionList();
         Map<String, Long> relationMap = mTerminalAdvertPackageVo.getRelationMap();
+        if(relationMap.isEmpty()) return ;
         int imageIndexOffset = 0;
         boolean onlyMainPos = true;
         if(regionList.size()>1){
