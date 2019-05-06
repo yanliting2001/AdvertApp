@@ -97,6 +97,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final String TAG = "MediaPlayerActivity";
 	private MediaPlayer mMediaPlayer;
 	private MySurfaceView surface;
+	private ImageView mImageMain ;
 	private SurfaceHolder surfaceHolder;
     private RelativeLayout relativeLayout;
 	private MarqueeTextView marqueeTextView;
@@ -155,6 +156,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int REFRESH_ADVERT_INFO_CMD = 100027;
 
     private final int UPDATE_IMAGE_AD_CMD = 100028;
+    private final int SHOW_NEXT_ADVERT_CMD = 100029;
 
 	private String mMode ="";
 
@@ -190,6 +192,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	AdPlayListManager mPlayListManager = null;
 
     private TerminalAdvertPackageVo mTerminalAdvertPackageVo;
+    private long mMainPositionId = 0;
 
 	private Handler mHandler = new Handler()
 	{
@@ -242,6 +245,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					ImageView imageview = (ImageView)paramMessage.obj;
 					showImageWithIndex(imageview);
 					savePlayRecord((Long)imageview.getTag(R.id.image_key));
+					break;
+				case SHOW_NEXT_ADVERT_CMD:
+					onVideoPlayCompleted();
 					break;
 				case INIT_INFO_SERVICE_CMD:
 					initAdInfoService();
@@ -411,6 +417,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
         relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
 		surface = (MySurfaceView) findViewById(R.id.surface);
+		mImageMain =(ImageView)findViewById(R.id.image_main);
+		mImageMain.setVisibility(View.INVISIBLE);
 
 		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
 		surfaceHolder.addCallback(this);
@@ -446,7 +454,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 					@Override
 					public void onCompletion(MediaPlayer mp) {
-						onVideoPlayCompleted();
+						//onVideoPlayCompleted();
 					}
 				});
 		mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
@@ -514,29 +522,37 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 showImageWithIndex(imageView);
             } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
                 MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
-				Long posid;
-                if(surfaceView.getTag()!=null){
-                	 posid = (Long)surfaceView.getTag();
-				}else {
-                	 posid = Long.valueOf(0);
-				}
-                initPlayer(posid);
+                initPlayer(mMainPositionId);
             }
 
         }
     }
 
 	private void initPlayer(Long posid){
-        String url = mPlayListManager.getValidPlayUrl(posid);
-		mMediaPlayer.reset();
-        if(url!=null && url.length()>0) {
-            startPlay(url);
-        }
+        PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid);
+        if(item!=null) {
+			String url = item.getPath();
+			Log.i(TAG,"player advertFile vType = " + item.getvType() + "url = " + item.getPath());
+        	if(item.getvType()==2) { //视频广告
+				//surface.setVisibility(View.VISIBLE);
+				mImageMain.setVisibility(View.GONE);
+				mMediaPlayer.reset();
+				if (url != null && url.length() > 0) {
+					startPlay(url);
+					int duration = item.getDuration();
+					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
+				}
+			}else if(item.getvType()==1) {
+				//surface.setVisibility(View.GONE);
+        		mImageMain.setVisibility(View.VISIBLE);
+				showImageWithPath(mImageMain,item.getPath(),item.getDuration());
+			}
+		}
     }
 	private void onVideoPlayCompleted() {
 		//get next player
 		Log.i(TAG,"onVideoPlayCompleted format  isPowerOff =  " + isPowerOff);
-		Long posid = (Long)surface.getTag();
+		Long posid = mMainPositionId;
 		savePlayRecord(posid);
 		if(!isPowerOff) {
 		    if(mMediaPlayer!=null) {
@@ -544,11 +560,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 mMediaPlayer.reset();
 				mPlayState = PLAYER_STATE_STOPED;
             }
-			String url = mPlayListManager.getValidPlayUrl(posid);
-			Log.i(TAG,"onVideoPlayCompleted validurl  =  " + url);
-			if (url != null && url.length() > 0) {
-				startPlay(url);
-			}
+			initPlayer(posid);
 		}else{
 			setScreenOff();
 		}
@@ -1335,10 +1347,15 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         return ScheduleTimesCache.get();
     }
     private void initAdView() {
-        RingLog.i("Use schedule times");
+
         List<TemplateRegion> regionList = mTerminalAdvertPackageVo.getTemplate().getRegionList();
         Map<String, Long> relationMap = mTerminalAdvertPackageVo.getRelationMap();
         int imageIndexOffset = 0;
+        boolean onlyMainPos = true;
+        if(regionList.size()>1){
+        	onlyMainPos = false;
+		}
+		RingLog.i("Use schedule times regionList size = " + regionList.size() + "onlyMainPos  = " + onlyMainPos);
         if(regionList!=null) {
             for(int i=0;i<regionList.size();i++){
                 TemplateRegion region = regionList.get(i);
@@ -1351,8 +1368,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 int marginTop = Integer.valueOf(regLocations[1]);
                 Long adType = Long.valueOf(videoType);
                 Long adPosId = relationMap.get(region.getIdent());
-                set_view_layout(adType, regWidth, regHeight, marginLeft,
-                        marginTop,adPosId);
+				if (onlyMainPos){
+					mMainPositionId = adPosId;
+				}else {
+					set_view_layout(adType, regWidth, regHeight, marginLeft,
+							marginTop, adPosId);
+				}
             }
         }
     }
@@ -1375,11 +1396,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             imageView.setTag(R.id.image_key,adposid);
             relativeLayout.addView(imageView);
         } else if (viewType == 2) { // 视频控件
-            RingLog.d(TAG, "set surface view");
-            surface.setLayoutParams(layoutParams);
-            surface.requestLayout();
-            surface.setTag(adposid);
-            relativeLayout.requestLayout();
+			RingLog.d(TAG, "set surface view");
+			surface.setLayoutParams(layoutParams);
+			surface.requestLayout();
+			relativeLayout.requestLayout();
 			/*
 			surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
 			surfaceHolder.addCallback(this);
@@ -1387,14 +1407,24 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			*/
         }
     }
+	private void showImageWithPath(ImageView imageView,String path,long duration) {
+		if (path != null && !path.isEmpty()) {
+			File file = new File(path);
+			Glide.with(getApplicationContext()).load(file).into(imageView);
+		}
+		mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
+	}
 
     private void showImageWithIndex(ImageView imageView) {
 		Long posid = (Long)imageView.getTag(R.id.image_key);
-		String path = mPlayListManager.getValidPlayUrl(posid);
-        if (path != null && !path.isEmpty()) {
-            File file = new File(path);
-            Glide.with(getApplicationContext()).load(file).into(imageView);
-        }
+		PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid);
+		if(item!=null) {
+			String path = item.getPath();
+			if (path != null && !path.isEmpty()) {
+				File file = new File(path);
+				Glide.with(getApplicationContext()).load(file).into(imageView);
+			}
+		}
 		Message msg = new Message();
 		msg.what = UPDATE_IMAGE_AD_CMD;
 		msg.obj = imageView;

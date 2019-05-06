@@ -87,25 +87,31 @@ public class AdPlayListManager {
         return res;
     }
 
-    public  String  getValidPlayUrl(Long positionId) {
+    public  PlayingAdvert  getValidPlayUrl(Long positionId) {
         String url=null;
         lock.lock();
         int playindex = 0;
+
+        PlayingAdvert playAdvertItem = null;
+        for (Map.Entry<Long, List<PlayingAdvert>> entry : mAdvertMap.entrySet()) {
+            Long id = entry.getKey();
+            Log.i(TAG,"getValidPlayUrl mAdvertMap id = " + id);
+        }
         adurls = mAdvertMap.get(positionId);
         if(mAdvertIndex.containsKey(positionId))
             playindex = mAdvertIndex.get(positionId);
+        Log.i(TAG,"getValidPlayUrl  positionId = " + positionId + "playindex = " + playindex);
         boolean urlvalid = false;
         if(adurls!=null && adurls.size()>0) {
             //Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
             //Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
-            url = findPlayUrl(playindex);
-            if(url!=null && !url.isEmpty()) {
+            playAdvertItem  = findPlayUrl(playindex);
+            if(playAdvertItem!=null) {
                 urlvalid = true;
                 int index = playindex % adurls.size();
                 //url = adurls.get(index).getPath();
-                AdvertApp.setPlayingAdvert(adurls.get(index));
-
-                PlayRecord record = new PlayRecord();
+                AdvertApp.setPlayingAdvert(playAdvertItem);
+                //PlayRecord record = new PlayRecord();
             }else{
                 urlvalid = false;
             }
@@ -114,25 +120,29 @@ public class AdPlayListManager {
         if(urlvalid == false && adurls_local.size()>0) {
             int index = playindex % adurls_local.size();
             url = adurls_local.get(index).getPath();
-            PlayingAdvert playingItem = new PlayingAdvert();
+            playAdvertItem = new PlayingAdvert();
             Long id = Long.valueOf(0);
-            playingItem.setAdPositionID(id);
-            playingItem.setAdvertid(id);
-            AdvertApp.setPlayingAdvert(playingItem);
+            playAdvertItem.setAdPositionID(id);
+            playAdvertItem.setAdvertid(id);
+            playAdvertItem.setPath(url);
+            playAdvertItem.setvType(2);
+            playAdvertItem.setDuration(15);
+            AdvertApp.setPlayingAdvert(playAdvertItem);
         }
         mAdvertIndex.put(positionId,++playindex);
         lock.unlock();
-        return url;
+        return playAdvertItem;
     }
-    private String findPlayUrl(int playindex){
+    private PlayingAdvert findPlayUrl(int playindex){
         String url="";
+        PlayingAdvert playAdvertItem=null;
         int size = adurls.size();
         for(int i=0;i<size;i++) {
             int index = playindex % adurls.size();
 
-            PlayingAdvert playAdvertItem  = adurls.get(index);
-            //Log.i(TAG,"play advertitem "+ playAdvertItem.getPath() + "playindex = " +  playindex + "index = " + index + "path = " + playAdvertItem.getPath());
-            //Log.i(TAG,"play advertitem   = " +  playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime()+playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime());
+             playAdvertItem  = adurls.get(index);
+            Log.i(TAG,"play advertitem "+ playAdvertItem.getPath() + "playindex = " +  playindex + "index = " + index + "path = " + playAdvertItem.getPath());
+            Log.i(TAG,"play advertitem   = " +  playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime()+playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime());
             if(playAdvertItem.getPath()!=null && !playAdvertItem.getPath().isEmpty()) {
                 if(playAdvertItem.getStartDate()!=null && !playAdvertItem.getStartDate().isEmpty()) {
                     if (CommonUtil.compareDateState(playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime(), playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime())) {
@@ -146,13 +156,16 @@ public class AdPlayListManager {
                     }
                 }else{
                     url = playAdvertItem.getPath();
+                    //return playAdvertItem;
                     break;
                 }
             }else{
                 playindex++;
             }
         }
-        return url;
+        if(url!=null && !url.isEmpty()) {
+            return playAdvertItem;
+        }else return null;
     }
 
     public void saveAdvertVersion(List<AdvertPosition> advertPositions) {

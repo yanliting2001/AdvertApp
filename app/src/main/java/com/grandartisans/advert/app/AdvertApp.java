@@ -119,7 +119,6 @@ public class AdvertApp extends Application {
         configuration.setThreadNum(3);
         DownloadManager.getInstance().init(getApplicationContext(), configuration);
     }
-
     public static PlayingAdvert getPlayingAdvert(){
         return mAdvert;
     }

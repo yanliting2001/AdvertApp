@@ -577,7 +577,7 @@ public class UpgradeService extends Service {
         uploadLog(getApplicationContext());
         appUpgrade(getApplicationContext());
         getToken(false);
-        mHandler.sendEmptyMessageDelayed(SHOW_TIME_INFO_CMD,3*1000);
+        //mHandler.sendEmptyMessageDelayed(SHOW_TIME_INFO_CMD,3*1000);
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -619,7 +619,7 @@ public class UpgradeService extends Service {
                     }
                 }else {
                     Log.d(TAG,"not need upgrade");
-                    OtherappUpgrade(getApplicationContext(),"com.tofu.locationinfo");
+                    //OtherappUpgrade(getApplicationContext(),"com.tofu.locationinfo");
                     mHandler.removeMessages(UPGRADE_APP_CMD);
                     mHandler.sendEmptyMessageDelayed(UPGRADE_APP_CMD, UPGRADE_INTERVAL_TIME);
                 }
@@ -877,6 +877,7 @@ public class UpgradeService extends Service {
                                     infoParameter.setToken(token);
                                     infoParameter.setData(dataList);
                                     reportInfo(infoParameter);
+
                                 }
                                 else if(dataItem.getEventID().equals("1007")) {
                                     List<PowerOnOffData> list = new ArrayList<>();
@@ -1039,6 +1040,7 @@ public class UpgradeService extends Service {
                             for (int k = 0; k < packageAdverts.size(); k++) {
                                 AdvertVo advertVo = packageAdverts.get(k);
                                 Advert advert = advertVo.getAdvert();
+                                Long vType = advert.getVtype();
                                 RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
                                 List<AdvertFile> fileList = advertVo.getFileList();
                                 for (int l = 0; l < fileList.size(); l++) {
@@ -1062,6 +1064,9 @@ public class UpgradeService extends Service {
                                     item.setEndDate(dateSchedueVo.getDateSchedule().getEndDate());
                                     item.setStartTime(timeScheduleVo.getTimeSchedule().getStartTime() + ":00");
                                     item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime() + ":00");
+                                    item.setDuration(advertFile.getVideoDuration());
+                                    item.setvType(vType);
+
                                     adurls.add(item);
 
                                 }

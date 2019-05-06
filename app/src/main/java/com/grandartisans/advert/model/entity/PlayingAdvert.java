@@ -10,6 +10,24 @@ public class PlayingAdvert {
     private long templateid;
     private String startDate;
     private String endDate;
+    private long vType;
+    private int duration;
+
+    public long getvType() {
+        return vType;
+    }
+
+    public void setvType(long vType) {
+        this.vType = vType;
+    }
+
+    public int getDuration() {
+        return duration;
+    }
+
+    public void setDuration(int duration) {
+        this.duration = duration;
+    }
 
     public String getStartDate() {
         return startDate;
