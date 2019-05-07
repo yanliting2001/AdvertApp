@@ -540,6 +540,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				if (url != null && url.length() > 0) {
 					startPlay(url);
 					int duration = item.getDuration();
+					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
 				}
 			}else if(item.getvType()==1) {
@@ -1417,6 +1418,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			File file = new File(path);
 			Glide.with(getApplicationContext()).load(file).into(imageView);
 		}
+		mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 		mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
 	}
 
