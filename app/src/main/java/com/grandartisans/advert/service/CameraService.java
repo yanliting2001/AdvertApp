@@ -22,6 +22,7 @@ import com.alibaba.sdk.android.oss.model.PutObjectRequest;
 import com.alibaba.sdk.android.oss.model.PutObjectResult;
 import com.github.faucamp.simplertmp.RtmpHandler;
 import com.grandartisans.advert.activity.MediaPlayerActivity;
+import com.grandartisans.advert.interfaces.RecorderEventListener;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.ljy.devring.other.RingLog;
@@ -69,7 +70,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     private static final String OBJECT_KEY_DIR = "advert/record/";
 
     private static final int START_RTMP = 100000;
-    private static final int START_RECORD = 100001;
+    //private static final int START_RECORD = 100001;
     private static final int UPLOAD_FILE = 100002;
     private static final int RESTART_RECORD = 100003;
 
@@ -78,15 +79,19 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     private CamBinder mCamBinder = new CamBinder();
     private Handler handler;
 
+    private RecorderEventListener mRecorderEventListener = null;
+
     private Handler mHandler = new Handler() {
         public void handleMessage(Message paramMessage) {
             switch (paramMessage.what) {
                 case START_RTMP:
                     startRtmp();
                     break;
+                    /*
                 case START_RECORD:
                     startCameraRecord();
                     break;
+                    */
                 case UPLOAD_FILE:
                     uploadRecord();
                     break;
@@ -240,7 +245,11 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         }
     }
 
-    public void startCameraRecord() {
+    public void  registerListener(RecorderEventListener listener){
+        if(listener!=null) mRecorderEventListener = listener;
+    }
+
+    public void startCameraRecord(SrsPublisher publisher) {
         RingLog.d(TAG, "Open Record Camera");
         if(haveUdisk()) removeOlderFiles();
         deviceId = SystemInfoManager.readFromNandkey("usid");
@@ -249,7 +258,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         }
         deviceId=deviceId.toUpperCase();
 
-        mPublisher = MediaPlayerActivity.mPublisher;
+        mPublisher = publisher;
         mPublisher.setRecordHandler(new SrsRecordHandler(this));
         mCamera = mPublisher.getCamera();
         if (mCamera != null) {
@@ -386,8 +395,8 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         // 上传文件
         RingLog.d(TAG, "Upload Start");
         String date = getCurrentDate();
-        String fileName = deviceId + "_" + date + ".mp4";
-        String objectKey = OBJECT_KEY_DIR + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId + ".mp4";
+        //String fileName = deviceId + "_" + date + ".mp4";
+        String objectKey = OBJECT_KEY_DIR + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId +getFileName()+ ".mp4";
         String recordFilePath = recordPath + "/" + deviceId + ".mp4";
         RingLog.d(TAG, "File name: " + objectKey);
         PutObjectRequest put = new PutObjectRequest(BUCKET_NAME, objectKey, recordFilePath);
@@ -397,12 +406,15 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
             RingLog.d(TAG, "ETag: " + putObjectResult.getETag());
             RingLog.d(TAG, "RequestId: " + putObjectResult.getRequestId());
             uploadSuccess = true;
+            if(mRecorderEventListener!=null) mRecorderEventListener.onRecordFinished(objectKey);
         } catch (ClientException e) {
             // 本地异常如网络异常等
+            RingLog.d(TAG, "PubObject: Upload failed,network error");
             e.printStackTrace();
             uploadSuccess = false;
         } catch (ServiceException e) {
             // 服务异常
+            RingLog.d(TAG, "PubObject: Upload failed");
             RingLog.d(TAG, "RequestId is: " + e.getRequestId());
             RingLog.d(TAG, "ErrorCode is: " + e.getErrorCode());
             RingLog.d(TAG, "HostId is: " + e.getHostId());

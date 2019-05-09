@@ -70,7 +70,7 @@ public class AdPlayListManager {
         }
         return false;
     }
-    public void  registerListene(AdListEventListener listener){
+    public void  registerListener(AdListEventListener listener){
         if(listener!=null) mAdListEventListener = listener;
     }
     public boolean updatePlayList( Map<Long, List<PlayingAdvert>> adMap){
@@ -193,5 +193,14 @@ public class AdPlayListManager {
             return item;
         }
         return null;
+    }
+    public void setPlayListUpdate(String isUpdated){
+        DevRing.cacheManager().diskCache("advertMap").put("isUpdated",isUpdated);
+    }
+    public boolean isAdListUpdated(){
+        boolean res = false;
+        String isUpdated = DevRing.cacheManager().diskCache("advertMap").getString("isUpdated","0");
+        if(isUpdated!=null && Integer.valueOf(isUpdated)==1) res = true;
+        return res;
     }
 }

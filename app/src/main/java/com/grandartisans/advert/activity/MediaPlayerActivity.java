@@ -48,11 +48,13 @@ import com.grandartisans.advert.dbutils.dbutils;
 import com.grandartisans.advert.interfaces.AdListEventListener;
 import com.grandartisans.advert.interfaces.ElevatorDoorEventListener;
 import com.grandartisans.advert.interfaces.ElevatorEventListener;
+import com.grandartisans.advert.interfaces.RecorderEventListener;
 import com.grandartisans.advert.model.AdvertModel;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.model.entity.event.AppEvent;
 import com.grandartisans.advert.model.entity.post.EventParameter;
 import com.grandartisans.advert.model.entity.post.PlayerStatusParameter;
+import com.grandartisans.advert.model.entity.post.RecorderUpdateEventData;
 import com.grandartisans.advert.model.entity.post.ReportEventData;
 import com.grandartisans.advert.model.entity.res.AdvertFile;
 import com.grandartisans.advert.model.entity.res.AdvertPositionVo;
@@ -363,7 +365,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		keepScreenWake();
 
 		mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
-		mPlayListManager.registerListene(mAdListEventListener);
+		mPlayListManager.registerListener(mAdListEventListener);
 
 		handler = new Handler();
 		mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*10);
@@ -672,10 +674,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         mInitZ = Float.valueOf(prjmanager.getGsensorDefault());
         mElevatorStatusManager.setAccSensorDefaultValue(mInitZ);
 
-        if (IsCameraServiceOn && mPublisher != null) {
+        if (IsCameraServiceOn && mPublisher != null && mCameraService!=null) {
         	mCameraService.restartCameraRecord();
         }else {
-        	checkCamera();
+        	if(mPlayListManager.isAdListUpdated()){
+				mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD,30*1000);
+			}
+        	//checkCamera();
 		}
 	}
 	@Override
@@ -1126,6 +1131,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				mTerminalAdvertPackageVo = tapvo;
 				initAdView();
 				initAdFiles();
+				mPlayListManager.setPlayListUpdate("1");
 			}
 		}
 	};
@@ -1188,6 +1194,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 		}
 	};
+
+	RecorderEventListener mRecorderEventListener = new RecorderEventListener(){
+		@Override
+		public void onRecordFinished(String path){
+			ReportAdListUpdate(path);
+		}
+	};
 	@Override
 	public void onEncodeIllegalArgumentException(IllegalArgumentException e) {
 		handleException(e);
@@ -1217,11 +1230,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             RingLog.d(TAG, "Camera is on");
             firstStartRecord = true;
             mHandler.sendEmptyMessageDelayed(START_SERVICE_CMD, 3000);
-        } else {
+        }
+        /*
+        else {
             RingLog.d(TAG, "None camera");
             mHandler.removeMessages(START_CAMERACHECK_CMD);
             mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD,10*1000);
         }
+        */
 	}
 
 	private void initCameraView() {
@@ -1344,7 +1360,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void startFirstRecord() {
 		initCameraView();
 		if (mCameraService != null) {
-			mCameraService.startCameraRecord();
+			mCameraService.registerListener(mRecorderEventListener);
+			mCameraService.startCameraRecord(mPublisher);
 		}
 	}
 
@@ -1550,5 +1567,40 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		textViewTempCode.setTextColor(Color.parseColor(fontColor));
 		linearLayoutText.setVisibility(View.VISIBLE);
 		linearLayoutText.setBackgroundColor(Color.parseColor(backColor));
+	}
+
+	private void ReportAdListUpdate(String path)
+	{
+		EventParameter parameter = new EventParameter();
+		parameter.setSn(SystemInfoManager.readFromNandkey("usid").toUpperCase());
+		parameter.setSessionid(CommonUtil.getRandomString(50));
+		parameter.setTimestamp(System.currentTimeMillis());
+		parameter.setToken(UpgradeService.mToken);
+		parameter.setApp(Utils.getAppPackageName(MediaPlayerActivity.this));
+		parameter.setEvent("advertRecord");
+		parameter.setEventtype(4000);
+
+		parameter.setMac(CommonUtil.getEthernetMac());
+
+		RecorderUpdateEventData eventData = new RecorderUpdateEventData();
+		eventData.setPath(path);
+		eventData.setTemplateid(0);
+		parameter.setEventData(eventData);
+		//parameter.setIp();
+		parameter.setTimestamp(System.currentTimeMillis());
+		AdvertModel mIModel = new AdvertModel();
+
+		DevRing.httpManager().commonRequest(mIModel.reportEvent(parameter), new CommonObserver<ReportInfoResult>() {
+			@Override
+			public void onResult(ReportInfoResult result) {
+				RingLog.d("report Advert List Updated Event ok status = " + result.getStatus() );
+				mPlayListManager.setPlayListUpdate("0");
+			}
+
+			@Override
+			public void onError(int i, String s) {
+				RingLog.d("reportEvent error i = " + i + "msg = " + s );
+			}
+		},null);
 	}
 }
