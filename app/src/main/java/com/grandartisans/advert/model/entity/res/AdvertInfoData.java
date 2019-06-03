@@ -4,13 +4,8 @@ public class AdvertInfoData<T> {
     private Long id;
     private Long iorder;
     private Long status;
-    private Long createBy;
-    private T updateBy;
-    private T remark1;
-    private T remark2;
-    private String createTime;
-    private String updateTime;
-    private Long slock;
+    private String startTime;
+    private String endTime;
 
     /**
      * 所属ID
@@ -61,9 +56,36 @@ public class AdvertInfoData<T> {
      * 文字信息
      */
     private String writing;
+    /*紧急通知类型1：文字；2：图片*/
+    private Long urgenttype;
+    /*紧急通知显示时长*/
+    private Long urgenttime;
+    /*紧急通知显示内容*/
+    private String urgentwriting;
 
-    private Long ownerId;
-    private Long vtime;
+    public Long getUrgenttype() {
+        return urgenttype;
+    }
+
+    public void setUrgenttype(Long urgenttype) {
+        this.urgenttype = urgenttype;
+    }
+
+    public Long getUrgenttime() {
+        return urgenttime;
+    }
+
+    public void setUrgenttime(Long urgenttime) {
+        this.urgenttime = urgenttime;
+    }
+
+    public String getUrgentwriting() {
+        return urgentwriting;
+    }
+
+    public void setUrgentwriting(String urgentwriting) {
+        this.urgentwriting = urgentwriting;
+    }
 
     public Long getId() {
         return id;
@@ -89,60 +111,20 @@ public class AdvertInfoData<T> {
         this.status = status;
     }
 
-    public Long getCreateBy() {
-        return createBy;
+    public String getStartTime() {
+        return startTime;
     }
 
-    public void setCreateBy(Long createBy) {
-        this.createBy = createBy;
+    public void setStartTime(String startTime) {
+        this.startTime = startTime;
     }
 
-    public T getUpdateBy() {
-        return updateBy;
+    public String getEndTime() {
+        return endTime;
     }
 
-    public void setUpdateBy(T updateBy) {
-        this.updateBy = updateBy;
-    }
-
-    public T getRemark1() {
-        return remark1;
-    }
-
-    public void setRemark1(T remark1) {
-        this.remark1 = remark1;
-    }
-
-    public T getRemark2() {
-        return remark2;
-    }
-
-    public void setRemark2(T remark2) {
-        this.remark2 = remark2;
-    }
-
-    public String getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(String createTime) {
-        this.createTime = createTime;
-    }
-
-    public String getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(String updateTime) {
-        this.updateTime = updateTime;
-    }
-
-    public Long getSlock() {
-        return slock;
-    }
-
-    public void setSlock(Long slock) {
-        this.slock = slock;
+    public void setEndTime(String endTime) {
+        this.endTime = endTime;
     }
 
     public Long getGroupId() {
@@ -223,21 +205,5 @@ public class AdvertInfoData<T> {
 
     public void setWriting(String writing) {
         this.writing = writing;
-    }
-
-    public Long getOwnerId() {
-        return ownerId;
-    }
-
-    public void setOwnerId(Long ownerId) {
-        this.ownerId = ownerId;
-    }
-
-    public Long getVtime() {
-        return vtime;
-    }
-
-    public void setVtime(Long vtime) {
-        this.vtime = vtime;
     }
 }

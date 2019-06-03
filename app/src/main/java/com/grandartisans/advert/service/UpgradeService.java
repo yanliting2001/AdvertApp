@@ -53,9 +53,11 @@ import com.grandartisans.advert.model.entity.post.UserAgent;
 import com.grandartisans.advert.model.entity.res.AdListHttpResult;
 import com.grandartisans.advert.model.entity.res.Advert;
 import com.grandartisans.advert.model.entity.res.AdvertFile;
+import com.grandartisans.advert.model.entity.res.AdvertInfoResult;
 import com.grandartisans.advert.model.entity.res.AdvertPosition;
 import com.grandartisans.advert.model.entity.res.AdvertPositionVo;
 import com.grandartisans.advert.model.entity.res.AdvertVo;
+import com.grandartisans.advert.model.entity.res.AdvertWeatherResult;
 import com.grandartisans.advert.model.entity.res.AppUpgradeData;
 import com.grandartisans.advert.model.entity.res.BrightnessData;
 import com.grandartisans.advert.model.entity.res.DateSchedule;
@@ -119,6 +121,8 @@ public class UpgradeService extends Service {
     private final int UPGRADE_APP_ON_USB_CMD = 10006;
     private final int SHOW_TIME_INFO_CMD = 10007;
     private final int START_REPORT_SCHEDULEVER_CMD = 10008;
+    private final int START_GET_INFO_CMD = 10009;
+    private final int START_GET_WEATHER_INFO_CMD = 10010;
 
     private final int HEART_BEAT_INTERVAL_TIME = 60*1000;// 心跳检测发送时间
 
@@ -276,60 +280,63 @@ public class UpgradeService extends Service {
                                     AdListHttpResult result = new AdListHttpResult();
                                     result = gson.fromJson(scheduleDataString, AdListHttpResult.class);
                                     List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
-                                    TemplateRegion region = regionList.get(0);
-                                    Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
-                                    AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
-                                    long positionId = advertPositionVo.getadvertPosition().getId();
-                                    long positionVersion = advertPositionVo.getadvertPosition().getVersion();
-
                                     boolean needUpgradeAd = false;
-                                    if (AdvertVersion.getAdVersion(positionId) > 0) {
-                                        if (positionVersion != AdvertVersion.getAdVersion(positionId)) {
+                                    for (int iii = 0; iii < regionList.size(); iii++) {
+                                        TemplateRegion region = regionList.get(iii);
+                                        Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
+                                        AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
+                                        long positionId = advertPositionVo.getadvertPosition().getId();
+                                        long positionVersion = advertPositionVo.getadvertPosition().getVersion();
+                                        if (AdvertVersion.getAdVersion(positionId) > 0) {
+                                            if (positionVersion != AdvertVersion.getAdVersion(positionId)) {
+                                                needUpgradeAd = true;
+                                            }
+                                        } else {
                                             needUpgradeAd = true;
                                         }
-                                    } else {
-                                        needUpgradeAd = true;
-                                    }
+                                        if (needUpgradeAd == true && advertPositionVo != null) {
+                                            sendMessage("开始升级广告视频", true);
+                                            List<DateScheduleVo> dateScheduleVos = advertPositionVo.getDateScheduleVos();
+                                            //mAdverPosition = advertPositionVo.getadvertPosition();
+                                            int size = dateScheduleVos.size();
+                                            //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, dateScheduleVos));
+                                            for (int ii = 0; ii < size; ii++) {
+                                                DateScheduleVo dateSchedueVo = dateScheduleVos.get(ii);
+                                                DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
+                                                RingLog.d("getAdList Schedue start date = " + dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
+                                                List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
+                                                for (int jj = 0; jj < TimeSchedueVos.size(); jj++) {
+                                                    TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(jj);
+                                                    TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
+                                                    RingLog.d("getAdList Schedue start time = " + timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
+                                                    List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
+                                                    for (int k = 0; k < packageAdverts.size(); k++) {
+                                                        AdvertVo advertVo = packageAdverts.get(k);
+                                                        Advert advert = advertVo.getAdvert();
+                                                        RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
 
-
-                                    //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, result.getData()));
-                                    if(needUpgradeAd == true && advertPositionVo!=null) {
-                                        sendMessage("开始升级广告视频",true);
-                                        List<DateScheduleVo> dateScheduleVos = advertPositionVo.getDateScheduleVos();
-                                        //mAdverPosition = advertPositionVo.getadvertPosition();
-                                        int size = dateScheduleVos.size();
-                                        //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, dateScheduleVos));
-                                        for (int ii = 0; ii < size; ii++) {
-                                            DateScheduleVo dateSchedueVo = dateScheduleVos.get(ii);
-                                            DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
-                                            RingLog.d("getAdList Schedue start date = " + dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
-                                            List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
-                                            for (int jj = 0; jj < TimeSchedueVos.size(); jj++) {
-                                                TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(jj);
-                                                TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
-                                                RingLog.d("getAdList Schedue start time = " + timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
-                                                List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
-                                                for (int k = 0; k < packageAdverts.size(); k++) {
-                                                    AdvertVo advertVo = packageAdverts.get(k);
-                                                    Advert advert = advertVo.getAdvert();
-                                                    RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
-
-                                                    List<AdvertFile> fileList = advertVo.getFileList();
-                                                    for (int l = 0; l < fileList.size(); l++) {
-                                                        AdvertFile advertFile = fileList.get(l);
-                                                        String destFile = FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + advertFile.getFileMd5() + ".mp4";
-                                                        int index = advertFile.getFilePath().lastIndexOf("/");
-                                                        String srcFile = USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR + "/"+advertFile.getFilePath().substring(index+1);
-                                                        FileOperator.moveFile(srcFile,destFile);
+                                                        List<AdvertFile> fileList = advertVo.getFileList();
+                                                        for (int l = 0; l < fileList.size(); l++) {
+                                                            AdvertFile advertFile = fileList.get(l);
+                                                            int index = advertFile.getFilePath().lastIndexOf(".");
+                                                            String suffix = advertFile.getFilePath().substring(index);
+                                                            String destFile = FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + advertFile.getFileMd5() + suffix;
+                                                            index = advertFile.getFilePath().lastIndexOf("/");
+                                                            String srcFile = USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR + "/" + advertFile.getFilePath().substring(index + 1);
+                                                            FileOperator.moveFile(srcFile, destFile);
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                        updateAdList(result);
-                                        sendMessage("广告视频升级完成",true);
-                                    }else {
+                                    }
+                                    updateAdList(result);
+                                    sendMessage("广告视频升级完成",true);
+                                    /*
+                                    else {
                                         sendMessage("广告视频已经是最新版本，无需更新",true);
                                     }
+                                    */
                                 }
 
                                 //检查apk升级
@@ -543,12 +550,19 @@ public class UpgradeService extends Service {
                     break;
                 case SHOW_TIME_INFO_CMD:
                     showTimeInfo();
+                    break;
                 case START_REPORT_SCHEDULEVER_CMD:
                     /*
                     if(adurls.size()>0) {
                         ReportScheduleVer(adurls.get(0).getTemplateid(),mAdverPosition.getId(), mAdverPosition.getVersion());
                     }
                     */
+                    break;
+                case START_GET_INFO_CMD:
+                    getAdvertInfo(mToken);
+                    break;
+                case START_GET_WEATHER_INFO_CMD:
+                    getAdvertWeather(mToken);
                     break;
                 default:
                     break;
@@ -713,10 +727,11 @@ public class UpgradeService extends Service {
                 RingLog.d("gettoken ok status = " + tokenDataAdHttpResult.getStatus() );
                 if(tokenDataAdHttpResult.getStatus()==0 && tokenDataAdHttpResult.getData().getToken()!=null) {
                     mToken = tokenDataAdHttpResult.getData().getToken();
-                    heardBeat(tokenDataAdHttpResult.getData().getToken());
+                    heardBeat(mToken);
+                    getAdvertInfo(mToken);
                 }else{
                     mHandler.removeMessages(GETTOKEN_CMD);
-                    mHandler.sendEmptyMessageDelayed(GETTOKEN_CMD, HEART_BEAT_INTERVAL_TIME);
+                    mHandler.sendEmptyMessageDelayed(GETTOKEN_CMD, 10*1000);
                 }
             }
 
@@ -792,23 +807,17 @@ public class UpgradeService extends Service {
                                             list = gson.fromJson(eventDataString, new TypeToken<List<PositionVer>>() {}.getType());
                                         }
                                     }
-                                    //List<PositionVer> list = ( List<PositionVer>)dataItem.getEventData();
-
-                                    //RingLog.d("send HeartBeat  eventData =  " + eventDataString);
-
                                     if (list != null && list.size() > 0) {
                                         for (int i = 0; i < list.size(); i++) {
                                             PositionVer item = (PositionVer)list.get(i);
                                             RingLog.d("send HeartBeat  positionID " + item.getAdvertPositionId() + "version = " + item.getVersion() );
                                             if (AdvertVersion.getAdVersion(item.getAdvertPositionId()) > 0) {
-                                                //if (item.getAdvertPositionId() == AdvertVersion.getAdPositionId()) {
                                                 if (item.getVersion() != AdvertVersion.getAdVersion(item.getAdvertPositionId())) {
                                                     if (!isDownloadingAdFiles()){
                                                         getAdList(token);
                                                         break;
                                                     }
                                                 }
-                                                //}
                                             } else {
                                                 if (!isDownloadingAdFiles()){
                                                     getAdList(token);
@@ -964,11 +973,7 @@ public class UpgradeService extends Service {
                                         if (list != null && list.size() > 0) {
                                             InfoStatus infoStatus = list.get(0);
                                             int status = infoStatus.getStatus();
-                                            if (status == 1) {
-                                                EventBus.getDefault().post(new AppEvent(AppEvent.SHOW_ADVERT_INFO, ""));
-                                            } else if (status == 0) {
-                                                EventBus.getDefault().post(new AppEvent(AppEvent.CLOSE_ADVERT_INFO, ""));
-                                            }
+                                            getAdvertInfo(token);
                                         }
                                     }
                                 }
@@ -1082,6 +1087,14 @@ public class UpgradeService extends Service {
             if(downloadList.size()>0){
                 downloadAdList();
                 updateScheduleTimesCache(result);
+            }else{
+                updateScheduleTimesCache(result);
+
+                mPlayListManager.updatePlayList(mAdMap);
+                mPlayListManager.saveAdvertVersion(mAdverPositions);
+                if(mAdverPositions!=null && mAdverPositions.size()>0) {
+                    ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
+                }
             }
     }
 
@@ -1130,6 +1143,66 @@ public class UpgradeService extends Service {
             }
 
         },null);
+    }
+    /*获取预设信息*/
+    private void getAdvertInfo(final String token) {
+        AdvertModel IModel = new AdvertModel();
+        AdvertParameter parameter = new AdvertParameter();
+        if (mDeviceId.isEmpty()) {
+            mDeviceId = SystemInfoManager.getDeviceId();
+        }
+        parameter.setDeviceClientid(mDeviceId);
+        parameter.setRequestUuid(CommonUtil.getRandomString(50));
+        parameter.setTimestamp(System.currentTimeMillis());
+        parameter.setToken(token);
+        DevRing.httpManager().commonRequest(IModel.getAdvertInfo(parameter), new CommonObserver<AdvertInfoResult>() {
+            @Override
+            public void onResult(AdvertInfoResult result) {
+                if (result!=null && result.getStatus() == 0 && result.getData() != null) {
+                    if(result.getData().getWeather()==1){/*需要显示天气信息*/
+                        getAdvertWeather(token);
+                    }
+                    mPlayListManager.updateInfo(result.getData());
+                }
+            }
+            @Override
+            public void onError(int i, String s) {
+                Log.d(TAG, "get advert info error i = " + i + " msg = " + s);
+                mHandler.removeMessages(START_GET_INFO_CMD);
+                mHandler.sendEmptyMessageDelayed(START_GET_INFO_CMD,10*1000);
+            }
+        }, null);
+    }
+    /*获取天气信息*/
+    private void getAdvertWeather(String token) {
+        AdvertModel IModel = new AdvertModel();
+        AdvertParameter parameter = new AdvertParameter();
+        if (mDeviceId.isEmpty()) {
+            mDeviceId = SystemInfoManager.getDeviceId();
+        }
+        parameter.setDeviceClientid(mDeviceId);
+        parameter.setRequestUuid(CommonUtil.getRandomString(50));
+        parameter.setTimestamp(System.currentTimeMillis());
+        parameter.setToken(token);
+        DevRing.httpManager().commonRequest(IModel.getAdvertWeather(parameter), new CommonObserver<AdvertWeatherResult>() {
+            @Override
+            public void onResult(AdvertWeatherResult result) {
+                if (result!=null && result.getStatus() == 0 && result.getData() != null) {
+                    mPlayListManager.updateWeatherInfo(result.getData());
+                    mHandler.removeMessages(START_GET_WEATHER_INFO_CMD);
+                    mHandler.sendEmptyMessageDelayed(START_GET_WEATHER_INFO_CMD,2*60*60*1000);
+                } else {
+
+                }
+            }
+
+            @Override
+            public void onError(int i, String s) {
+                Log.d(TAG, "get advert weather error i = " + i + " msg = " + s);
+                mHandler.sendEmptyMessageDelayed(START_GET_WEATHER_INFO_CMD,10*1000);
+                mHandler.sendEmptyMessageDelayed(START_GET_WEATHER_INFO_CMD,10*1000);
+            }
+        }, null);
     }
 
     private void ReportScheduleVer(long templateid,long positionid,int adversion)

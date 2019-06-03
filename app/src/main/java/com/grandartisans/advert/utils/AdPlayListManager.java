@@ -11,9 +11,11 @@ import com.grandartisans.advert.dbutils.PlayRecord;
 import com.grandartisans.advert.interfaces.AdListEventListener;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.model.entity.res.AdvertFile;
+import com.grandartisans.advert.model.entity.res.AdvertInfoData;
 import com.grandartisans.advert.model.entity.res.AdvertPosition;
 import com.grandartisans.advert.model.entity.res.AdvertPositionVo;
 import com.grandartisans.advert.model.entity.res.AdvertVo;
+import com.grandartisans.advert.model.entity.res.AdvertWeatherData;
 import com.grandartisans.advert.model.entity.res.DateScheduleVo;
 import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TimeScheduleVo;
@@ -34,6 +36,8 @@ public class AdPlayListManager {
     private List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
     private List<PlayingAdvert> adurls_local = new ArrayList<PlayingAdvert>();
     private AdListEventListener mAdListEventListener = null;
+    private AdvertInfoData mInfoData = null;
+    private AdvertWeatherData mWeatherData = null;
     ReentrantLock lock = new ReentrantLock();
     private AdPlayListManager (Context context) {}
     public static AdPlayListManager getInstance(Context context) {
@@ -202,5 +206,19 @@ public class AdPlayListManager {
         String isUpdated = DevRing.cacheManager().diskCache("advertMap").getString("isUpdated","0");
         if(isUpdated!=null && Integer.valueOf(isUpdated)==1) res = true;
         return res;
+    }
+    public void updateInfo(AdvertInfoData data){
+        mInfoData = data;
+        if(mAdListEventListener!=null) mAdListEventListener.onInfoUpdate(data);
+    }
+    public AdvertInfoData getAdvertInfo(){
+        return mInfoData;
+    }
+    public void updateWeatherInfo(AdvertWeatherData data){
+        mWeatherData = data;
+        if(mAdListEventListener!=null) mAdListEventListener.onWeatherUpdate(data);
+    }
+    public AdvertWeatherData getWeatherInfo(){
+        return mWeatherData;
     }
 }

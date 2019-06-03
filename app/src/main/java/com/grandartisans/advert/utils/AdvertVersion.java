@@ -5,7 +5,7 @@ import com.ljy.devring.DevRing;
 public class AdvertVersion {
     public static int  getAdVersion(long id) {
         int version = -1;
-        version = DevRing.cacheManager().spCache("advertVersion").getInt(String.valueOf(id),-1);
+        version = DevRing.cacheManager().spCache("advertVersionM").getInt(String.valueOf(id),-1);
         /*
         if(positionId == id ) {
             version = DevRing.cacheManager().spCache("advertVersion").getInt("version",-1);
@@ -15,7 +15,7 @@ public class AdvertVersion {
     }
 
     public static void  setAdVersion(int id,int version) {
-        DevRing.cacheManager().spCache("advertVersion").put(String.valueOf(id),version);
+        DevRing.cacheManager().spCache("advertVersionM").put(String.valueOf(id),version);
         //DevRing.cacheManager().spCache("advertVersion").put("version",version);
     }
     /*

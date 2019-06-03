@@ -24,6 +24,7 @@ import android.view.inputmethod.InputMethodManager;
 
 import com.grandartisans.advert.R;
 import com.grandartisans.advert.activity.MediaPlayerActivity;
+import com.ljy.devring.other.RingLog;
 
 import java.io.File;
 import java.io.IOException;
@@ -456,6 +457,16 @@ public class CommonUtil {
         res = simpleDateFormat.format(date);
         return res;
     }
+    /**
+     * 获取当前时间字符串
+     */
+    public static String getCurrentTimeString(long timestamp) {
+        String res;
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm");
+        Date date = new Date(timestamp);
+        res = simpleDateFormat.format(date);
+        return res;
+    }
 
     /**
      * 上传 Crash Log 到服务器
@@ -489,6 +500,17 @@ public class CommonUtil {
             }
         } else if (file.exists()) {
             file.delete();
+        }
+    }
+
+    public static boolean haveUdisk(){
+        File diskFile = new File("/storage/udisk0/.aaasss.ga");
+        if(diskFile.exists()) {
+            RingLog.d("haveUdisk", "recorder have external u disk file");
+            return true;
+        }else {
+            RingLog.d("haveUdisk", "recorder to internal disk");
+            return false;
         }
     }
 }
