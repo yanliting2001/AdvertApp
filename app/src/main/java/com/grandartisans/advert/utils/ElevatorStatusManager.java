@@ -199,6 +199,7 @@ public class ElevatorStatusManager implements SensorEventListener {
             case LIFT_STATE_INIT:
                 break;
             case LIFT_STATE_PRE_STOP:
+                break;
             case LIFT_STATE_STOP:
                 if(mEventListener!=null) mEventListener.onElevatorStop();
                 break;
