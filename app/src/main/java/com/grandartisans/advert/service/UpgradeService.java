@@ -80,6 +80,7 @@ import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.EncryptUtil;
 import com.grandartisans.advert.utils.FileOperator;
 import com.grandartisans.advert.utils.FileUtils;
+import com.grandartisans.advert.utils.LogcatHelper;
 import com.grandartisans.advert.utils.OnUsbState;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
@@ -123,7 +124,9 @@ public class UpgradeService extends Service {
     private final int START_REPORT_SCHEDULEVER_CMD = 10008;
     private final int START_GET_INFO_CMD = 10009;
     private final int START_GET_WEATHER_INFO_CMD = 10010;
+    private final int UPLOAD_LOGCAT_CMD = 10011;
 
+    private final int UPLOAD_LOGCAT_INTERVAL_TIME = 10*60*1000;// 心跳检测发送时间
     private final int HEART_BEAT_INTERVAL_TIME = 60*1000;// 心跳检测发送时间
 
     private final int UPGRADE_INTERVAL_TIME = 10*60*1000;
@@ -168,6 +171,8 @@ public class UpgradeService extends Service {
     private AdPlayListManager mPlayListManager = null;
     private PrjSettingsManager prjmanager = null;
     private Long mTemplateId ;
+
+    private LogcatHelper logHelper =null;
 
     Runnable runableUsbUpgrade = new Runnable() {
         @Override
@@ -564,6 +569,13 @@ public class UpgradeService extends Service {
                 case START_GET_WEATHER_INFO_CMD:
                     getAdvertWeather(mToken);
                     break;
+                case UPLOAD_LOGCAT_CMD:
+                    if(logHelper!=null) {
+                        logHelper.sendLogMessage(END_POINT);
+                        removeMessages(UPLOAD_LOGCAT_CMD);
+                        sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
+                    }
+                    break;
                 default:
                     break;
             }
@@ -584,13 +596,19 @@ public class UpgradeService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
+        /*
+        LogcatHelper.init(getApplicationContext());
+        logHelper = LogcatHelper.getInstance(getApplicationContext());
+        logHelper.start();
+        mHandler.sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
+        */
         mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
         prjmanager = PrjSettingsManager.getInstance(this);
         initUSB(getApplicationContext());
         uploadLog(getApplicationContext());
         appUpgrade(getApplicationContext());
         getToken(false);
+
         //mHandler.sendEmptyMessageDelayed(SHOW_TIME_INFO_CMD,3*1000);
         return super.onStartCommand(intent, flags, startId);
     }
