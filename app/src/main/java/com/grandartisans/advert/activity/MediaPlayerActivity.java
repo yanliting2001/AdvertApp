@@ -199,6 +199,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private int mPlayingAdDuration;
 	private Long mPlayingAdType;
 
+	private boolean mContinuePlayWhenScreenOff = true;
+
 	private Handler mHandler = new Handler()
 	{
 		public void handleMessage(Message paramMessage)
@@ -238,7 +240,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					break;
 				case SET_LIFT_STOP_CMD:
 					//setLiftState(LIFT_STATE_STOP);
-					setScreenOff();
+					setScreenOff(false);
 					break;
 				case START_FIRST_RECORD_CMD:
 					startFirstRecord();
@@ -330,7 +332,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			lock.lock();
             if(isPowerOff==false) {
 				isPowerOff = true;
-				setScreenOff();
+				setScreenOff(false);
 				mHandler.sendEmptyMessageDelayed(START_REPORT_EVENT_CMD,mReportEventTimeInterval);
 			}
             lock.unlock();
@@ -473,10 +475,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                     RingLog.d(TAG, "Player is resumed, now resume record");
                     mPublisher.resumeRecord();
                 }
-                if (getScreenStatus() == 0){
-                    mMediaPlayer.pause();
-					mPlayState = PLAYER_STATE_PAUSED;
-			    }
+                if(!mContinuePlayWhenScreenOff) {
+					if (getScreenStatus() == 0) {
+						mMediaPlayer.pause();
+						mPlayState = PLAYER_STATE_PAUSED;
+					}
+				}
 			    if(mMode.equals("AOSP on p313")) {
 					if (player_first_time == true) {
 						player_first_time = false;
@@ -574,7 +578,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             }
 			initPlayer(posid);
 		}else{
-			setScreenOff();
+			setScreenOff(false);
 		}
 	}
 	@Override
@@ -881,7 +885,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		prjmanager.setScreen(enable);
 	}
 
-	private void setScreenOff(){
+	private void setScreenOff(boolean continuePlay){
 		if (getScreenStatus() != 0) {
 			setScreen(0);
 
@@ -889,31 +893,33 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				RingLog.d(TAG, "Player is paused, so pause record");
 				mPublisher.pauseRecord();
 			}
-			if(mPlayingAdType==2) {
-				if (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
-					mMediaPlayer.pause();
-					mPlayState = PLAYER_STATE_PAUSED;
+			if(!continuePlay) {
+				if (mPlayingAdType == 2) {
+					if (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
+						mMediaPlayer.pause();
+						mPlayState = PLAYER_STATE_PAUSED;
+					}
+				} else if (mPlayingAdType == 1) {
+					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
+					mPausePlayTime = System.currentTimeMillis();
+					RingLog.d(TAG, "remainingTime mPausePlayTime " + mPausePlayTime);
 				}
-			}else if(mPlayingAdType==1){
-				mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
-				mPausePlayTime = System.currentTimeMillis();
-				RingLog.d(TAG, "remainingTime mPausePlayTime " + mPausePlayTime);
 			}
 		}
 	}
 	private void setScreenOn() {
 		if(getScreenStatus()!=1 ) {
 			setScreen(1);
-			if(mPlayingAdType==2) {
-				if (mMediaPlayer != null && mPlayState == PLAYER_STATE_PAUSED) {
-					mMediaPlayer.start();
-				}
-			}else if(mPlayingAdType==1){
-				Long playedTime = mPausePlayTime-mStartPlayTime;
-				Long remainingTime = mPlayingAdDuration*1000-playedTime;
-				if(remainingTime<0) remainingTime =Long.valueOf(mPlayingAdDuration*1000);
-				RingLog.d(TAG, "Player is resumed, remainingTime = " + remainingTime);
-				mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,remainingTime);
+			if (mPlayingAdType == 2) {
+					if (mMediaPlayer != null && mPlayState == PLAYER_STATE_PAUSED) {
+						mMediaPlayer.start();
+					}
+			} else if (mPlayingAdType == 1) {
+					Long playedTime = mPausePlayTime - mStartPlayTime;
+					Long remainingTime = mPlayingAdDuration * 1000 - playedTime;
+					if (remainingTime < 0) remainingTime = Long.valueOf(mPlayingAdDuration * 1000);
+					RingLog.d(TAG, "Player is resumed, remainingTime = " + remainingTime);
+					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD, remainingTime);
 			}
 			if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
 				RingLog.d(TAG, "Player is resumed, now resume record");
@@ -1204,7 +1210,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		public void onElevatorStop(){
 			Log.i(TAG, "onElevatorStop:"  + "screenStatus = " + screenStatus);
 			if(CommonUtil.isForeground(MediaPlayerActivity.this,"com.grandartisans.advert.activity.MediaPlayerActivity")) {
-				setScreenOff();
+				mHandler.removeMessages(SET_SCREEN_ON_CMD);
+				setScreenOff(mContinuePlayWhenScreenOff);
 			}
 		}
 	};
@@ -1214,7 +1221,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			Log.i(TAG, "onElevatorDoorOpen:"  + "screenStatus = " + screenStatus);
 			if (screenStatus == 1 || screenStatus ==2) {
 				mHandler.removeMessages(SET_SCREEN_ON_CMD);
-				setScreenOff();
+				setScreenOff(mContinuePlayWhenScreenOff);
 			}
 			mElevatorStatusManager.setStatusDefault();
 		}
