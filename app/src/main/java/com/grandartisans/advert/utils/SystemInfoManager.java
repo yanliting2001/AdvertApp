@@ -208,7 +208,7 @@ public class SystemInfoManager{
         String deviceId =  SystemInfoManager.readFromNandkey("usid");
         if(deviceId!=null) {
             deviceId=deviceId.toUpperCase();
-        }else deviceId="";
+        }else deviceId="j5043400148c260001";
         return deviceId;
     }
 }

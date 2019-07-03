@@ -994,6 +994,8 @@ public class UpgradeService extends Service {
                                             getAdvertInfo(token);
                                         }
                                     }
+                                }else if(dataItem.getEventID().equals("1012")){ /*录制监播视频*/
+                                    if(mPlayListManager!=null) mPlayListManager.setOnRecorderStart();
                                 }
                             }
                         }
@@ -1226,7 +1228,10 @@ public class UpgradeService extends Service {
     private void ReportScheduleVer(long templateid,long positionid,int adversion)
     {
         EventParameter parameter = new EventParameter();
-        parameter.setSn(SystemInfoManager.readFromNandkey("usid").toUpperCase());
+        if (mDeviceId.isEmpty()) {
+            mDeviceId = SystemInfoManager.getDeviceId();
+        }
+        parameter.setSn(mDeviceId.toUpperCase());
         parameter.setSessionid(CommonUtil.getRandomString(50));
         parameter.setTimestamp(System.currentTimeMillis());
         parameter.setToken(mToken);

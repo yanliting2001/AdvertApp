@@ -174,7 +174,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private ServiceConnection mNetServiceConn;
 	private float mInitZ = 0;
 	private ElevatorStatusManager mElevatorStatusManager;
-	private ElevatorDoorManager mElevatorDoorManager;
+	private ElevatorDoorManager mElevatorDoorManager=null;
 
 
 	private int mReportEventTimeInterval=5*60*1000;
@@ -388,7 +388,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		startService(intentService);
 		*/
 
-
+		/*
 		PicoClient.OnEventListener mPicoOnEventListener = new PicoClient.OnEventListener() {
 		    @Override
             public void onEvent(PicoClient client, int etype, Object einfo) {
@@ -409,7 +409,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		    }
         };
 		pClient = new PicoClient(mPicoOnEventListener, null);
-
+		*/
 		//mHandler.sendEmptyMessage(START_REPORT_PLAYSTATUS_CMD);
 	}
 
@@ -790,7 +790,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private void ReportPlayStatus () {
 		EventParameter parameter = new EventParameter();
-		parameter.setSn(SystemInfoManager.readFromNandkey("usid").toUpperCase());
+		String 	deviceId = SystemInfoManager.getDeviceId();
+		parameter.setSn(deviceId.toUpperCase());
 		parameter.setSessionid(CommonUtil.getRandomString(50));
 		parameter.setTimestamp(System.currentTimeMillis());
 		parameter.setToken(UpgradeService.mToken);
@@ -839,7 +840,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void ReportPlayRecord(final PlayRecord record)
 	{
 		EventParameter parameter = new EventParameter();
-		parameter.setSn(SystemInfoManager.readFromNandkey("usid").toUpperCase());
+		String 	deviceId = SystemInfoManager.getDeviceId();
+		parameter.setSn(deviceId.toUpperCase());
 		parameter.setSessionid(CommonUtil.getRandomString(50));
 		parameter.setTimestamp(System.currentTimeMillis());
 		parameter.setToken(UpgradeService.mToken);
@@ -1179,6 +1181,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		public void onWeatherUpdate(AdvertWeatherData data){
 			setWeatherInfo(data);
 		}
+		@Override
+		public void onRecoderStart(){
+			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD,  1000);
+		}
 	};
 
 	ElevatorEventListener mElevatorEventListener =new  ElevatorEventListener(){
@@ -1438,6 +1444,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				}else {
 					set_view_layout(adType, regWidth, regHeight, marginLeft,
 							marginTop, adPosId);
+					if(adType==2) {
+						mMainPositionId = adPosId;
+					}
 				}
             }
         }
@@ -1611,7 +1620,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void ReportAdListUpdate(String path)
 	{
 		EventParameter parameter = new EventParameter();
-		parameter.setSn(SystemInfoManager.readFromNandkey("usid").toUpperCase());
+		String 	deviceId = SystemInfoManager.getDeviceId();
+		parameter.setSn(deviceId.toUpperCase());
 		parameter.setSessionid(CommonUtil.getRandomString(50));
 		parameter.setTimestamp(System.currentTimeMillis());
 		parameter.setToken(UpgradeService.mToken);

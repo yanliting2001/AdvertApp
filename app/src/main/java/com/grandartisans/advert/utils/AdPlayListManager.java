@@ -221,4 +221,8 @@ public class AdPlayListManager {
     public AdvertWeatherData getWeatherInfo(){
         return mWeatherData;
     }
+    public void setOnRecorderStart(){
+        setPlayListUpdate("1");
+        if(mAdListEventListener!=null) mAdListEventListener.onRecoderStart();
+    }
 }
