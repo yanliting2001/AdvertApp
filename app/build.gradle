@@ -66,4 +66,6 @@ dependencies {
     implementation files('libs/prjManager.jar')
     implementation files('libs/nanohttpd-2.2.0.jar')
     provided files('libs/pico.jar')
+    implementation files('libs/bcprov-jdk15on-1.59.jar')
+    implementation files('libs/junjiangSdk.jar')
 }

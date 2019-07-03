@@ -39,8 +39,10 @@ import com.ljy.devring.http.support.observer.CommonObserver;
 import com.ljy.devring.http.support.observer.DownloadObserver;
 import com.ljy.devring.other.RingLog;
 import com.ljy.devring.util.FileUtil;
+import com.westone.cryptoSdk.Api;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.List;
 
 public class InterfaeTestActivity extends Activity implements IBaseFragment,IBaseActivity {
@@ -78,12 +80,97 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
         //getToken();
 
         //appUpgrade(InterfaeTestActivity.this);
+
+        new Thread(runableDecryptFile).start();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         Log.d(TAG,"onDestroy");
+    }
+
+    Runnable runableDecryptFile = new Runnable() {
+        @Override
+        public void run() {
+            DecryptFileTest();
+        }
+    };
+    /*
+    private void DecryptFileTest(){
+        Api api = new Api();
+        String path = FileUtil.getExternalCacheDir(getApplicationContext());
+        //String path = "/storage/udisk0";
+        Log.d(TAG,"DecryptFileTest Start path = " + path);
+        //api.DecryptFile(path +"/input.mp4",path + "/output.mp4");
+        //Log.d(TAG,"DecryptFileTest finished");
+        Log.d(TAG,"DecryptFileTest return Stream start");
+        api.DecryptFile(path +"/input.mp4");
+        Log.d(TAG,"DecryptFileTest return Stream end");
+    }
+    */
+    private void DecryptFileTest() {
+        Api api = new Api();
+        String key = api.GenerateKey();
+        String iv = api.GenerateIV();
+        byte[] plain = new byte[]{1, 2, 3, 4, 5, 6, 7};
+        byte[] cipher1 = api.EncryptData(key, iv, plain);
+        byte[] plain2 = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        byte[] cipher2 = api.EncryptData(key, iv, plain2);
+        api.DecryptData(key, iv, cipher1);
+        api.DecryptData(key, iv, cipher2);
+        /*
+        String file1 = api.FileEnc(plain);
+        api.FileDec(file1);
+        */
+        String path = FileUtil.getExternalCacheDir(getApplicationContext());
+        String FileNameIn = path + "/1.txt";
+        String FileNameOut = path + "/2.txt";
+        String FileNameOut2 = path + "/3.txt";
+        long t1 = System.currentTimeMillis();
+        long count = 0L;
+        long t2 = 0L;
+        //System.out.println("file enc start enc start time: " + t1 );
+        //api.EncryptFile(FileNameIn, FileNameOut);
+        t1 = System.currentTimeMillis();
+        System.out.println("file end end enc end time: " + t1 );
+        while(true) {
+            t1 = System.currentTimeMillis();
+            byte[] out = api.DecryptFileOnce(FileNameOut);
+            t2 = System.currentTimeMillis();
+            if (out == null) {
+                return;
+            }
+
+            System.out.println("DecryptFileOnce " + count++ + " times len = " + out.length + ",time = " + (t2 - t1));
+        }
+        /*
+        int ret = api.DecryptFile(FileNameOut, FileNameOut2);
+        t1 = System.currentTimeMillis();
+        System.out.println("file dec end dec time: " + t1 );
+        InputStream inputStream = api.DecryptFile(FileNameOut);
+        t1 = System.currentTimeMillis();
+        System.out.println("file dec end decstream time: " + t1 );
+        int l = 1;
+        byte[] re = new byte[1000];
+
+        while(l > 0) {
+            try {
+                l = inputStream.read(re);
+                if (l <= 0) {
+                    inputStream.close();
+                    break;
+                }
+
+                byte[] p = new byte[l];
+                System.arraycopy(re, 0, p, 0, l);
+            } catch (Exception var22) {
+                var22.printStackTrace();
+            }
+        }
+
+        System.out.println("file dec path result is " + (ret == 0));
+        */
     }
 
     /**
