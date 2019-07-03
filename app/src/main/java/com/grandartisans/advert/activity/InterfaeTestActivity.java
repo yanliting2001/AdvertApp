@@ -130,10 +130,11 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
         long t1 = System.currentTimeMillis();
         long count = 0L;
         long t2 = 0L;
-        //System.out.println("file enc start enc start time: " + t1 );
-        //api.EncryptFile(FileNameIn, FileNameOut);
+        System.out.println("file enc start enc start time: " + t1 );
+        api.EncryptFile(FileNameIn, FileNameOut);
         t1 = System.currentTimeMillis();
         System.out.println("file end end enc end time: " + t1 );
+        /*
         while(true) {
             t1 = System.currentTimeMillis();
             byte[] out = api.DecryptFileOnce(FileNameOut);
@@ -144,7 +145,7 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
 
             System.out.println("DecryptFileOnce " + count++ + " times len = " + out.length + ",time = " + (t2 - t1));
         }
-        /*
+        */
         int ret = api.DecryptFile(FileNameOut, FileNameOut2);
         t1 = System.currentTimeMillis();
         System.out.println("file dec end dec time: " + t1 );
@@ -170,7 +171,7 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
         }
 
         System.out.println("file dec path result is " + (ret == 0));
-        */
+
     }
 
     /**
