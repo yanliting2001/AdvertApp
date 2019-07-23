@@ -2,6 +2,7 @@ package com.grandartisans.advert.activity;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -18,6 +19,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.hardware.Camera;
 import android.media.AudioManager;
@@ -64,6 +67,7 @@ import com.grandartisans.advert.model.entity.res.PowerOnOffData;
 import com.grandartisans.advert.model.entity.res.ReportInfoResult;
 import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TerminalAdvertPackageVo;
+import com.grandartisans.advert.server.M3u8Server;
 import com.grandartisans.advert.service.CameraService;
 import com.grandartisans.advert.service.NetworkService;
 import com.grandartisans.advert.service.UpgradeService;
@@ -81,7 +85,9 @@ import com.grandartisans.advert.view.MySurfaceView;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.http.support.observer.CommonObserver;
 import com.ljy.devring.other.RingLog;
+import com.ljy.devring.util.FileUtil;
 import com.prj.utils.PrjSettingsManager;
+import com.westone.cryptoSdk.Api;
 
 import net.ossrs.yasea.SrsCameraView;
 import net.ossrs.yasea.SrsEncodeHandler;
@@ -201,6 +207,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private boolean mContinuePlayWhenScreenOff = true;
 
+	private  Api encApi=null;
+
 	private Handler mHandler = new Handler()
 	{
 		public void handleMessage(Message paramMessage)
@@ -248,11 +256,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 case START_CAMERACHECK_CMD:
                     checkCamera();
                     break;
-				case UPDATE_IMAGE_AD_CMD:
-					ImageView imageview = (ImageView)paramMessage.obj;
-					showImageWithIndex(imageview);
-					savePlayRecord((Long)imageview.getTag(R.id.image_key));
-					break;
 				case SHOW_NEXT_ADVERT_CMD:
 					onVideoPlayCompleted();
 					break;
@@ -363,6 +366,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		setCurrentTime();
 		keepScreenWake();
 
+		M3u8Server.execute();
+
 		mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
 		mPlayListManager.registerListener(mAdListEventListener);
 
@@ -382,6 +387,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		initTFMini();//初始化激光测距模块
 
 		mPlayListManager.init();
+
+		encApi = new Api();
 
 		/*
 		Intent intentService = new Intent(MediaPlayerActivity.this,UpgradeService.class);
@@ -507,11 +514,22 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		});
 
 	}
-
 	private void startPlay(String url) {
 		try {
 			//mMediaPlayer.setDataSource(url);
-
+            /*
+			String path = FileUtil.getExternalCacheDir(getApplicationContext());
+            if(playindex>2) playindex =0;
+			if(playindex==0) {
+				url = "http://127.0.0.1:8081/" + path + "/video/playlist.m3u8";
+			}else if(playindex ==1) {
+				url = "http://127.0.0.1:8081/" + path + "/b5562967-6325-4f3f-b574-5d56ecd39256/playlist.m3u8";
+			}else if(playindex==2) {
+				url = "http://127.0.0.1:8081/" + path + "/da5ba8c6-4d16-46d4-b056-cc07ce9e48cc/playlist.m3u8";
+			}
+			playindex ++;
+			*/
+            //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
 			Log.d(TAG, "start play: url = " + url );
 			mMediaPlayer.setDataSource(MediaPlayerActivity.this,Uri.parse(url));
 			mMediaPlayer.prepareAsync();
@@ -528,12 +546,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         for (int i = 0; i < childCount; i++) {
             if (relativeLayout.getChildAt(i) instanceof ImageView) {
                 ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
-                showImageWithIndex(imageView);
+                Long posid = (Long)imageView.getTag(R.id.image_key);
+                initPlayer(posid);
             } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
                 MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
                 initPlayer(mMainPositionId);
             }
-
         }
     }
 
@@ -558,7 +576,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}else if(item.getvType()==1) {
 				//surface.setVisibility(View.GONE);
         		mImageMain.setVisibility(View.VISIBLE);
-				showImageWithPath(mImageMain,item.getPath(),item.getDuration());
+				showImageWithPath(mImageMain,item.getPath(),item.getDuration(),item.isEncrypt());
 				mPlayingAdDuration = item.getDuration();
 				mStartPlayTime = System.currentTimeMillis();
 				RingLog.d(TAG, "remainingTime mPausePlayTime " + mStartPlayTime);
@@ -1481,30 +1499,29 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			*/
         }
     }
-	private void showImageWithPath(ImageView imageView,String path,long duration) {
+	private void showImageWithPath(ImageView imageView,String path,long duration,boolean isEncrypt) {
 		if (path != null && !path.isEmpty()) {
-			File file = new File(path);
-			Glide.with(getApplicationContext()).load(file).into(imageView);
+			//File file = new File(path);
+			//Glide.with(getApplicationContext()).load(file).into(imageView);
+			if(isEncrypt) {
+				RingLog.d("dec file start ");
+				InputStream fis = encApi.DecryptFile(path);
+				if (fis != null) {
+					RingLog.d("dec file sucess ");
+					Bitmap bm = BitmapFactory.decodeStream(fis);
+					if (bm != null) imageView.setImageBitmap(bm);
+				} else {
+					RingLog.d("dec file failed ");
+				}
+			}else{
+				Bitmap bm = BitmapFactory.decodeFile(path);
+				if(bm!=null) imageView.setImageBitmap(bm);
+			}
 		}
 		mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 		mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
 	}
 
-    private void showImageWithIndex(ImageView imageView) {
-		Long posid = (Long)imageView.getTag(R.id.image_key);
-		PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid);
-		if(item!=null) {
-			String path = item.getPath();
-			if (path != null && !path.isEmpty()) {
-				File file = new File(path);
-				Glide.with(getApplicationContext()).load(file).into(imageView);
-			}
-		}
-		Message msg = new Message();
-		msg.what = UPDATE_IMAGE_AD_CMD;
-		msg.obj = imageView;
-		mHandler.sendMessageDelayed(msg,IMAGE_AD_SHOW_DURATION);
-    }
 	private void removeImageView() {
 		int childCount = relativeLayout.getChildCount();
 		if (childCount <= 1)

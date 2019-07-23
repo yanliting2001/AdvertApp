@@ -43,6 +43,7 @@ import com.westone.cryptoSdk.Api;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
 
 public class InterfaeTestActivity extends Activity implements IBaseFragment,IBaseActivity {
@@ -130,25 +131,28 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
         long t1 = System.currentTimeMillis();
         long count = 0L;
         long t2 = 0L;
+        /*
         System.out.println("file enc start enc start time: " + t1 );
         api.EncryptFile(FileNameIn, FileNameOut);
         t1 = System.currentTimeMillis();
         System.out.println("file end end enc end time: " + t1 );
-        /*
+        */
+
         while(true) {
             t1 = System.currentTimeMillis();
             byte[] out = api.DecryptFileOnce(FileNameOut);
             t2 = System.currentTimeMillis();
             if (out == null) {
-                return;
+                break;
             }
-
+            System.out.println("file dec inputstream end dec time: " + Arrays.toString(out));
             System.out.println("DecryptFileOnce " + count++ + " times len = " + out.length + ",time = " + (t2 - t1));
         }
-        */
+
         int ret = api.DecryptFile(FileNameOut, FileNameOut2);
         t1 = System.currentTimeMillis();
         System.out.println("file dec end dec time: " + t1 );
+        /*
         InputStream inputStream = api.DecryptFile(FileNameOut);
         t1 = System.currentTimeMillis();
         System.out.println("file dec end decstream time: " + t1 );
@@ -169,7 +173,7 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
                 var22.printStackTrace();
             }
         }
-
+        */
         System.out.println("file dec path result is " + (ret == 0));
 
     }

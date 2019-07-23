@@ -1074,8 +1074,14 @@ public class UpgradeService extends Service {
                                     AdvertFile advertFile = fileList.get(l);
                                     DownloadInfo downloadInfo = new DownloadInfo();
                                     downloadInfo.setId(advertFile.getId());
-                                    downloadInfo.setFileMd5(advertFile.getFileMd5());
-                                    downloadInfo.setUrl(advertFile.getFilePath());
+                                    String encurl = advertFile.getRemark1();
+                                    if(encurl!=null && !encurl.isEmpty()){
+                                        downloadInfo.setUrl(encurl);
+                                        downloadInfo.setFileMd5(advertFile.getRemark2());
+                                    }else {
+                                        downloadInfo.setUrl(advertFile.getFilePath());
+                                        downloadInfo.setFileMd5(advertFile.getFileMd5());
+                                    }
                                     downloadInfo.setName(advertFile.getName());
                                     downloadInfo.setStatus(DownloadInfo.STATUS_NOT_DOWNLOAD);
                                     downloadList.add(downloadInfo);
@@ -1083,7 +1089,13 @@ public class UpgradeService extends Service {
 
                                     PlayingAdvert item = new PlayingAdvert();
                                     item.setPath("");
-                                    item.setMd5(advertFile.getFileMd5());
+                                    if(encurl!=null && !encurl.isEmpty()){
+                                        item.setMd5(advertFile.getRemark2());
+                                        item.setEncrypt(true);
+                                    }else {
+                                        item.setMd5(advertFile.getFileMd5());
+                                        item.setEncrypt(false);
+                                    }
                                     item.setAdvertid(advertFile.getAdvertid());
                                     item.setAdPositionID(dateSchedueVo.getDateSchedule().getAdvertPositionId());
                                     item.setTemplateid(region.getTemplateid());
@@ -1093,14 +1105,11 @@ public class UpgradeService extends Service {
                                     item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime() + ":00");
                                     item.setDuration(advertFile.getVideoDuration());
                                     item.setvType(vType);
-
                                     adurls.add(item);
-
                                 }
                             }
                         }
                     }
-
                 }
                 mAdMap.put(adverPosition.getId(),adurls);
             }
@@ -1118,15 +1127,28 @@ public class UpgradeService extends Service {
             }
     }
 
-    private void updatePlayListFilePath(String path){
+    private void updatePlayListFilePath(String path,String md5){
         for (Map.Entry<Long, List<PlayingAdvert>> entry : mAdMap.entrySet()) {
             List<PlayingAdvert> adurls = entry.getValue();
             int size = adurls.size();
             for(int i=0;i<size;i++){
                 PlayingAdvert item = adurls.get(i);
                 RingLog.d("updatePlayListFilePath path = " + path + "item md5=" + item.getMd5());
-                if(path.contains(item.getMd5())){
-                    item.setPath(path);
+                if(md5.equals(item.getMd5())){
+                    if(path.contains(".zip")){
+                        String destPath = FileUtil.getExternalCacheDir(getApplicationContext());
+                        File file = new File(path);
+                        try {
+                            ZipUtils.upZipFile(file,destPath);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        int index = path.indexOf(".zip");
+                        String subpath = path.substring(0,index);
+                        item.setPath("http://127.0.0.1:8769/"+subpath+"/playlist.m3u8");
+                    }else {
+                        item.setPath(path);
+                    }
                 }
             }
             //System.out.println("Key = " + entry.getKey() + ", list size  = " + adurls.size() + "Value: = "+ adurls.get(0).getPath());
@@ -1283,9 +1305,9 @@ public class UpgradeService extends Service {
                 Log.d(TAG,"check downloadAdList  download not DOWNLOAD file: " + item.getUrl());
                 //downloadFile(item.getUrl(), item.getFileMd5(), item.getFileMd5() + ".mp4", 1);
                 String url =  item.getUrl();
-                int index = url.lastIndexOf(".");
-                String suffix = url.substring(index);
-                downloadWithXutils(item.getUrl(),item.getFileMd5(),item.getFileMd5()+suffix,1);
+                int index = url.lastIndexOf("/");
+                String fileName = url.substring(index+1);
+                downloadWithXutils(item.getUrl(),item.getFileMd5(),fileName,1);
                 return;
             }
         }
@@ -1296,7 +1318,10 @@ public class UpgradeService extends Service {
                 finished = false;
                 Log.d(TAG,"check downloadAdList  download downlaod error file: " + item.getUrl());
                 //downloadFile(item.getUrl(), item.getFileMd5(), item.getFileMd5() + ".mp4", 1);
-                downloadWithXutils(item.getUrl(),item.getFileMd5(),item.getFileMd5()+".mp4",1);
+                String url =  item.getUrl();
+                int index = url.lastIndexOf("/");
+                String fileName = url.substring(index+1);
+                downloadWithXutils(item.getUrl(),item.getFileMd5(),fileName,1);
                 break;
             }
         }
@@ -1451,19 +1476,18 @@ public class UpgradeService extends Service {
     }
 
     private void downloadWithXutils(String url,final  String fileMd5,final String fileName,final int type){
-
         final String filePath = FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + fileName;
         checkAvailableStorage();
         File fileCheck = new File(FileUtil.getExternalCacheDir(getApplicationContext()), fileName);
         if (fileCheck.exists() && fileCheck.length() >0 ) {
-            if(EncryptUtil.md5sum(filePath).equals(fileMd5))
+            if(EncryptUtil.md5sum(filePath).equals(fileMd5.toLowerCase()))
             {
                 if(type ==1 ) {
                     Message msg = new Message();
                     msg.what = DOWNLOAD_COMPLITE_CMD;
                     msg.obj = fileMd5;
                     mHandler.sendMessage(msg);
-                    updatePlayListFilePath(FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + fileName);
+                    updatePlayListFilePath(FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + fileName,fileMd5);
                     return;
                 }
             }else {
@@ -1513,13 +1537,13 @@ public class UpgradeService extends Service {
 
                 String downloadmd5 = EncryptUtil.md5sum(filePath);
                 Log.i(TAG,"DownloadSuccess:" + filePath + "downloadmd5 = " + downloadmd5 + "fileMd5 = " + fileMd5 );
-                if(downloadmd5.equals(fileMd5)) {
+                if(downloadmd5.equals(fileMd5.toLowerCase())) {
                     if(type ==1 ) {
                         Message msg = new Message();
                         msg.what = DOWNLOAD_COMPLITE_CMD;
                         msg.obj = fileMd5;
                         mHandler.sendMessage(msg);
-                        updatePlayListFilePath(filePath);
+                        updatePlayListFilePath(filePath,fileMd5);
                         Log.d(TAG, "Download File finished filePath :" + filePath);
                     }else if(type == 0) { /*apk 下载*/
                         Utils.installSilently(filePath);

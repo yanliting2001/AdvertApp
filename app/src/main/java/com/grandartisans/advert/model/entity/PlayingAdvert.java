@@ -12,6 +12,15 @@ public class PlayingAdvert {
     private String endDate;
     private long vType;
     private int duration;
+    private boolean isEncrypt;
+
+    public boolean isEncrypt() {
+        return isEncrypt;
+    }
+
+    public void setEncrypt(boolean encrypt) {
+        isEncrypt = encrypt;
+    }
 
     public long getvType() {
         return vType;

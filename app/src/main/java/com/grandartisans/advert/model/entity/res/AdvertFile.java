@@ -58,6 +58,25 @@ public class AdvertFile {
      */
     private String fileMd5;
 
+    private String remark1;
+    private String remark2;
+
+    public String getRemark2() {
+        return remark2;
+    }
+
+    public void setRemark2(String remark2) {
+        this.remark2 = remark2;
+    }
+
+    public String getRemark1() {
+        return remark1;
+    }
+
+    public void setRemark1(String remark1) {
+        this.remark1 = remark1;
+    }
+
     /**
      * 视频时长|1|1|1|单位 秒
      */
