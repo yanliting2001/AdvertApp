@@ -203,7 +203,7 @@ public class UpgradeService extends Service {
                     }.getType());
                     RingLog.d(TAG, "USB Plugined list size = " + list.size());
                     if(mDeviceId.isEmpty()) {
-                        mDeviceId =  SystemInfoManager.getDeviceId();
+                        mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
                     }
                     for (int i = 0; i < list.size(); i++) {
                         TerminalGroup group = list.get(i);
@@ -445,7 +445,7 @@ public class UpgradeService extends Service {
                 if (recordItem.getCount() >0) {
                     EventParameter parameter = new EventParameter();
                     if(mDeviceId.isEmpty()) {
-                        mDeviceId =  SystemInfoManager.getDeviceId();
+                        mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
                     }
                     parameter.setSn(mDeviceId);
                     parameter.setSessionid(CommonUtil.getRandomString(50));
@@ -603,7 +603,9 @@ public class UpgradeService extends Service {
         mHandler.sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
         */
         mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
-        prjmanager = PrjSettingsManager.getInstance(this);
+        if(SystemInfoManager.isClassExist("android.prj.PrjManager")) {
+            prjmanager = PrjSettingsManager.getInstance(this);
+        }
         initUSB(getApplicationContext());
         uploadLog(getApplicationContext());
         appUpgrade(getApplicationContext());
@@ -627,7 +629,7 @@ public class UpgradeService extends Service {
         //parameter.setAppIdent("123456");
         parameter.setAppName(Utils.getAppPackageName(context));
         if(mDeviceId.isEmpty()) {
-            mDeviceId =  SystemInfoManager.getDeviceId();
+            mDeviceId =  SystemInfoManager.getDeviceId(context);
         }
         parameter.setDeviceClientid(mDeviceId);
         parameter.setRequestUuid(CommonUtil.getRandomString(50));
@@ -673,7 +675,7 @@ public class UpgradeService extends Service {
         parameter.setAppIdent(packageName);
         parameter.setAppName(packageName);
         if(mDeviceId.isEmpty()) {
-            mDeviceId =  SystemInfoManager.getDeviceId();
+            mDeviceId =  SystemInfoManager.getDeviceId(context);
         }
         parameter.setDeviceClientid(mDeviceId);
         parameter.setRequestUuid(CommonUtil.getRandomString(50));
@@ -712,7 +714,7 @@ public class UpgradeService extends Service {
         AdvertModel mIModel = new AdvertModel();
         TokenParameter tokenParameter = new TokenParameter();
         if(mDeviceId.isEmpty()) {
-            mDeviceId =  SystemInfoManager.getDeviceId();
+            mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
         }
         tokenParameter.setDeviceClientid(mDeviceId);
         tokenParameter.setTimestamp(System.currentTimeMillis() - SystemClock.elapsedRealtime());
@@ -796,7 +798,7 @@ public class UpgradeService extends Service {
         AdvertModel mIModel = new AdvertModel();
         HeartBeatParameter parameter = new HeartBeatParameter();
         if(mDeviceId.isEmpty()) {
-            mDeviceId =  SystemInfoManager.getDeviceId();
+            mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
         }
         parameter.setDeviceClientid(mDeviceId);
         parameter.setTimestamp(System.currentTimeMillis());
@@ -871,7 +873,7 @@ public class UpgradeService extends Service {
 
                                     ReportInfoParameter infoParameter = new ReportInfoParameter();
                                     if(mDeviceId.isEmpty()) {
-                                        mDeviceId =  SystemInfoManager.getDeviceId();
+                                        mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
                                     }
                                     infoParameter.setDeviceClientid(mDeviceId);
                                     infoParameter.setTimestamp(System.currentTimeMillis());
@@ -897,7 +899,7 @@ public class UpgradeService extends Service {
 
                                     ReportInfoParameter infoParameter = new ReportInfoParameter();
                                     if(mDeviceId.isEmpty()) {
-                                        mDeviceId =  SystemInfoManager.getDeviceId();
+                                        mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
                                     }
                                     infoParameter.setDeviceClientid(mDeviceId);
                                     infoParameter.setTimestamp(System.currentTimeMillis());
@@ -976,7 +978,7 @@ public class UpgradeService extends Service {
                                             BrightnessData brightnessData = list.get(0);
                                             int brightness = brightnessData.getBrightness();
                                             RingLog.d(TAG, "brightnessdata brightness=" + brightness);
-                                            prjmanager.setBrightness(brightness);
+                                            if(prjmanager!=null) prjmanager.setBrightness(brightness);
                                         }
                                     }
                                 }
@@ -1162,7 +1164,7 @@ public class UpgradeService extends Service {
         AdvertModel mIModel = new AdvertModel();
         AdvertParameter parameter = new AdvertParameter();
         if(mDeviceId.isEmpty()) {
-            mDeviceId =  SystemInfoManager.getDeviceId();
+            mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
         }
         parameter.setDeviceClientid(mDeviceId);
         parameter.setRequestUuid(CommonUtil.getRandomString(50));
@@ -1191,7 +1193,7 @@ public class UpgradeService extends Service {
         AdvertModel IModel = new AdvertModel();
         AdvertParameter parameter = new AdvertParameter();
         if (mDeviceId.isEmpty()) {
-            mDeviceId = SystemInfoManager.getDeviceId();
+            mDeviceId = SystemInfoManager.getDeviceId(getApplicationContext());
         }
         parameter.setDeviceClientid(mDeviceId);
         parameter.setRequestUuid(CommonUtil.getRandomString(50));
@@ -1220,7 +1222,7 @@ public class UpgradeService extends Service {
         AdvertModel IModel = new AdvertModel();
         AdvertParameter parameter = new AdvertParameter();
         if (mDeviceId.isEmpty()) {
-            mDeviceId = SystemInfoManager.getDeviceId();
+            mDeviceId = SystemInfoManager.getDeviceId(getApplicationContext());
         }
         parameter.setDeviceClientid(mDeviceId);
         parameter.setRequestUuid(CommonUtil.getRandomString(50));
@@ -1251,7 +1253,7 @@ public class UpgradeService extends Service {
     {
         EventParameter parameter = new EventParameter();
         if (mDeviceId.isEmpty()) {
-            mDeviceId = SystemInfoManager.getDeviceId();
+            mDeviceId = SystemInfoManager.getDeviceId(getApplicationContext());
         }
         parameter.setSn(mDeviceId.toUpperCase());
         parameter.setSessionid(CommonUtil.getRandomString(50));
@@ -1677,7 +1679,7 @@ public class UpgradeService extends Service {
         long timestamp = new Date().getTime();
         String date = CommonUtil.stampToDate(timestamp);
         if(mDeviceId.isEmpty()) {
-            mDeviceId =  SystemInfoManager.getDeviceId();
+            mDeviceId =  SystemInfoManager.getDeviceId(getApplicationContext());
         }
         String objectKey = OBJECT_KEY_DIR + Integer.toString(year) + "/" + Integer.toString(month) + "/" + Integer.toString(day) + "/CrashLog_" + mDeviceId + "_" + date + ".zip";
         PutObjectRequest put = new PutObjectRequest(BUCKET_NAME, objectKey, zipFilePath);

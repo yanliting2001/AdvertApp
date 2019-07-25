@@ -2,6 +2,7 @@ package com.grandartisans.advert.utils;
 
 import android.content.Context;
 import android.content.Entity;
+import android.net.Uri;
 import android.util.Log;
 
 import com.google.gson.Gson;
@@ -71,6 +72,12 @@ public class AdPlayListManager {
                 //item.setPath("http://update.thewaxseal.cn/videos/defaultvideo.mp4");
                 adurls_local.add(item);
             }
+        }else {
+            PlayingAdvert item = new PlayingAdvert();
+            Uri mUri = Uri.parse("android.resource://" + "com.grandartisans.advert" + "/raw/video1");
+            //item.setPath(mUri.getPath());
+            item.setPath(mUri.toString());
+            adurls_local.add(item);
         }
         return false;
     }

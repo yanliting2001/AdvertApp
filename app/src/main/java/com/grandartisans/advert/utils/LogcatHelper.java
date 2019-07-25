@@ -321,7 +321,7 @@ public class LogcatHelper {
 		int day = calendar.get(Calendar.DAY_OF_MONTH);
 		long timestamp = new Date().getTime();
 		String date = CommonUtil.stampToDate(timestamp);
-		String mDeviceId =  SystemInfoManager.getDeviceId();
+		String mDeviceId =  SystemInfoManager.getDeviceId(mContext);
 		String objectKey = OBJECT_KEY_DIR + Integer.toString(year) + "/" + Integer.toString(month) + "/" + Integer.toString(day) + "/Logcat_" + mDeviceId + "_" + date + ".zip";
 		PutObjectRequest put = new PutObjectRequest(BUCKET_NAME, objectKey, zipFilePath);
 		try {

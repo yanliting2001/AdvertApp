@@ -254,7 +254,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					startFirstRecord();
 					break;
                 case START_CAMERACHECK_CMD:
-                    checkCamera();
+                    //checkCamera();
                     break;
 				case SHOW_NEXT_ADVERT_CMD:
 					onVideoPlayCompleted();
@@ -363,6 +363,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		setContentView(R.layout.activity_surface_player);
 		Log.i(TAG,"onCreate");
+        View decorView = getWindow().getDecorView();
+        int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN;
+        decorView.setSystemUiVisibility(uiOptions);
 		setCurrentTime();
 		keepScreenWake();
 
@@ -373,27 +377,31 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 		handler = new Handler();
 		mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*10);
-		prjmanager = PrjSettingsManager.getInstance(this);
-
-		mMode = CommonUtil.getModel();
-		if(mMode.equals("GAPEDS4A3") || mMode.equals("GAPEDS4A6")){
-			prjmanager.setBrightness(10);
+		if(SystemInfoManager.isClassExist("android.prj.PrjManager")) {
+			prjmanager = PrjSettingsManager.getInstance(this);
 		}
 
-		mElevatorStatusManager = new ElevatorStatusManager(this,mMode,Float.valueOf(prjmanager.getGsensorDefault()));
-		mElevatorStatusManager.registerListener(mElevatorEventListener);
+		mMode = CommonUtil.getModel();
+		if(mMode.equals("GAPEDS4A3") || mMode.equals("GAPEDS4A6")) {
+			if (prjmanager != null) prjmanager.setBrightness(10);
+		}
+		float gsensordefault =0;
+		if(prjmanager!=null) {
+			gsensordefault = Float.valueOf(prjmanager.getGsensorDefault());
+			mElevatorStatusManager = new ElevatorStatusManager(this,mMode,gsensordefault);
+			mElevatorStatusManager.registerListener(mElevatorEventListener);
+			initTFMini();//初始化激光测距模块
+		}else{
+            Intent intentService = new Intent(MediaPlayerActivity.this,UpgradeService.class);
+            startService(intentService);
+        }
 		initEventBus();//注册事件接收
-
-		initTFMini();//初始化激光测距模块
 
 		mPlayListManager.init();
 
 		encApi = new Api();
 
-		/*
-		Intent intentService = new Intent(MediaPlayerActivity.this,UpgradeService.class);
-		startService(intentService);
-		*/
+
 
 		/*
 		PicoClient.OnEventListener mPicoOnEventListener = new PicoClient.OnEventListener() {
@@ -611,7 +619,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		//然后初始化播放手段视频的player对象
 		//initPlayer();
 		surfaceDestroyedFlag = false;
-		CommonUtil.setScreenVideoMode("1");
+		if(prjmanager!=null) {
+			CommonUtil.setScreenVideoMode("1");
+		}
 		String status = DevRing.cacheManager().spCache("PowerStatus").getString("status","on");
 		if(status.equals("off")){
 			handler.post(runableSetPowerOff);
@@ -672,7 +682,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
 			mHandler.removeMessages(START_OPEN_SERIALPORT);
 		}
-		mElevatorDoorManager.closeSeriaPort();
+		if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
 		if(mMediaPlayer!=null) {
 			Log.i(TAG,"Stop mMediaPlayer");
 			mMediaPlayer.stop();
@@ -699,11 +709,17 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private void onResumeEvent(){
         if(!mMode.equals("AOSP on p313")) {
-            threshold_distance = Integer.valueOf(prjmanager.getDistance());
-			mElevatorDoorManager.setDefaultDistance(threshold_distance);
+			if(prjmanager!=null) {
+				threshold_distance = Integer.valueOf(prjmanager.getDistance());
+			}
+			if(mElevatorDoorManager!=null)
+				mElevatorDoorManager.setDefaultDistance(threshold_distance);
         }
-        mInitZ = Float.valueOf(prjmanager.getGsensorDefault());
-        mElevatorStatusManager.setAccSensorDefaultValue(mInitZ);
+		if(prjmanager!=null) {
+			mInitZ = Float.valueOf(prjmanager.getGsensorDefault());
+		}
+		if(mElevatorDoorManager!=null)
+        	mElevatorStatusManager.setAccSensorDefaultValue(mInitZ);
 
         if (IsCameraServiceOn && mPublisher != null && mCameraService!=null) {
         	mCameraService.restartCameraRecord();
@@ -756,7 +772,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		if(mMode.equals("AOSP on p313")) {
 			threshold_distance = DevRing.cacheManager().spCache("TFMini").getInt("threshold_distance",0);
 		}else {
-			threshold_distance = Integer.valueOf(prjmanager.getDistance());
+			if(prjmanager!=null) {
+				threshold_distance = Integer.valueOf(prjmanager.getDistance());
+			}
 		}
 		mElevatorDoorManager = new ElevatorDoorManager(threshold_distance);
 		mElevatorDoorManager.registerListener(mElevatorDoorEventListener);
@@ -808,7 +826,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private void ReportPlayStatus () {
 		EventParameter parameter = new EventParameter();
-		String 	deviceId = SystemInfoManager.getDeviceId();
+		String 	deviceId = SystemInfoManager.getDeviceId(getApplicationContext());
 		parameter.setSn(deviceId.toUpperCase());
 		parameter.setSessionid(CommonUtil.getRandomString(50));
 		parameter.setTimestamp(System.currentTimeMillis());
@@ -858,7 +876,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void ReportPlayRecord(final PlayRecord record)
 	{
 		EventParameter parameter = new EventParameter();
-		String 	deviceId = SystemInfoManager.getDeviceId();
+		String 	deviceId = SystemInfoManager.getDeviceId(getApplicationContext());
 		parameter.setSn(deviceId.toUpperCase());
 		parameter.setSessionid(CommonUtil.getRandomString(50));
 		parameter.setTimestamp(System.currentTimeMillis());
@@ -902,7 +920,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void setScreen(int enable){
         screenStatus = enable;
 		Log.i(TAG,"setScreen enable :" + enable);
-		prjmanager.setScreen(enable);
+		if(prjmanager!=null) {
+			prjmanager.setScreen(enable);
+		}
 	}
 
 	private void setScreenOff(boolean continuePlay){
@@ -1637,7 +1657,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void ReportAdListUpdate(String path)
 	{
 		EventParameter parameter = new EventParameter();
-		String 	deviceId = SystemInfoManager.getDeviceId();
+		String 	deviceId = SystemInfoManager.getDeviceId(getApplicationContext());
 		parameter.setSn(deviceId.toUpperCase());
 		parameter.setSessionid(CommonUtil.getRandomString(50));
 		parameter.setTimestamp(System.currentTimeMillis());
