@@ -7,8 +7,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.util.Log;
 
-import com.aspsine.multithreaddownload.util.ListUtils;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -133,6 +131,7 @@ public class Utils {
         Log.d("Android Verison ","" + currentapiVersion);
         return "";
     }
+    /*
     public static boolean isAppInstalled(Context context, String packageName) {
         List<PackageInfo> packages = context.getPackageManager().getInstalledPackages(0);
         if (!ListUtils.isEmpty(packages)) {
@@ -144,7 +143,7 @@ public class Utils {
         }
         return false;
     }
-
+    */
     /**
      * The install command installs a package to the system. Options:
      *

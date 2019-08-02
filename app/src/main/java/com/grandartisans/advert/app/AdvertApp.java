@@ -2,10 +2,8 @@ package com.grandartisans.advert.app;
 
 import android.app.Application;
 import android.content.Context;
+import android.support.multidex.MultiDex;
 
-import com.aspsine.multithreaddownload.DownloadConfiguration;
-import com.aspsine.multithreaddownload.DownloadManager;
-import com.aspsine.multithreaddownload.util.FileUtils;
 import com.grandartisans.advert.app.constant.UrlConstants;
 import com.grandartisans.advert.dbutils.dbutils;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
@@ -26,7 +24,11 @@ public class AdvertApp extends Application {
     private static DbManager.DaoConfig daoConfig;
     private static DbManager db;
 
-
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this) ;
+    }
     @Override
     public void onCreate() {
         super.onCreate();
@@ -41,7 +43,6 @@ public class AdvertApp extends Application {
 
         dbutils.init(sContext);
 
-        //initDownloader();
         if(true) {
             //*********1.初始化**********
             DevRing.init(this);
@@ -113,12 +114,6 @@ public class AdvertApp extends Application {
         }
     }
 
-    private void initDownloader() {
-        DownloadConfiguration configuration = new DownloadConfiguration();
-        configuration.setMaxThreadNum(10);
-        configuration.setThreadNum(3);
-        DownloadManager.getInstance().init(getApplicationContext(), configuration);
-    }
     public static PlayingAdvert getPlayingAdvert(){
         return mAdvert;
     }

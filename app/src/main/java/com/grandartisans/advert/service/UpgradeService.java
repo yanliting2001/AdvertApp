@@ -557,11 +557,7 @@ public class UpgradeService extends Service {
                     showTimeInfo();
                     break;
                 case START_REPORT_SCHEDULEVER_CMD:
-                    /*
-                    if(adurls.size()>0) {
-                        ReportScheduleVer(adurls.get(0).getTemplateid(),mAdverPosition.getId(), mAdverPosition.getVersion());
-                    }
-                    */
+                    ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
                     break;
                 case START_GET_INFO_CMD:
                     getAdvertInfo(mToken);
@@ -1039,7 +1035,7 @@ public class UpgradeService extends Service {
     private void updateAdList(AdListHttpResult result){
             mAdMap.clear();
             downloadList.clear();
-
+            mAdverPositions.clear();
             List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
             mTemplateId = result.getData().getTemplate().getTemplate().getId();
             for(int ii=0;ii < regionList.size();ii++) {
@@ -1122,7 +1118,6 @@ public class UpgradeService extends Service {
                 updateScheduleTimesCache(result);
 
                 mPlayListManager.updatePlayList(mAdMap);
-                mPlayListManager.saveAdvertVersion(mAdverPositions);
                 if(mAdverPositions!=null && mAdverPositions.size()>0) {
                     ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
                 }
@@ -1277,6 +1272,7 @@ public class UpgradeService extends Service {
             @Override
             public void onResult(ReportInfoResult result) {
                 RingLog.d("reportScheduleVersion  ok status = " + result.getStatus());
+                mPlayListManager.saveAdvertVersion(mAdverPositions);
             }
 
             @Override

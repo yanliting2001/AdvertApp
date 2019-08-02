@@ -34,7 +34,7 @@ public class ScheduleTimesCache {
             RingLog.d("ScheduleTimesCache", "cached schedule is null");
             return null;
         } else {
-            RingLog.d("ScheduleTimesCache", "cached schedule is :" + str_cache);
+            //RingLog.d("ScheduleTimesCache", "cached schedule is :" + str_cache);
             TerminalAdvertPackageVo terminalAdvertPackageVo = gson.fromJson(str_cache,
                     new TypeToken<TerminalAdvertPackageVo>() {}.getType());
             return terminalAdvertPackageVo;

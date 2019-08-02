@@ -254,10 +254,15 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					startFirstRecord();
 					break;
                 case START_CAMERACHECK_CMD:
-                    //checkCamera();
+                    checkCamera();
                     break;
+				case UPDATE_IMAGE_AD_CMD:
+					ImageView imageview = (ImageView)paramMessage.obj;
+					showImageWithIndex(imageview);
+					savePlayRecord((Long)imageview.getTag(R.id.image_key));
+					break;
 				case SHOW_NEXT_ADVERT_CMD:
-					onVideoPlayCompleted();
+					onVideoPlayCompleted(true);
 					break;
 				case UPDATE_TIME_INFO_CMD:
 					updateTimeInfo();
@@ -351,7 +356,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			if(isPowerOff==true) {
 				isPowerOff = false;
 				setScreen(1);
-				onVideoPlayCompleted();
+				onVideoPlayCompleted(false);
 			}
 			lock.unlock();
 			//initPowerOnAlarm(13,10,00);
@@ -397,11 +402,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         }
 		initEventBus();//注册事件接收
 
-		mPlayListManager.init();
+		mPlayListManager.init(this);
 
 		encApi = new Api();
-
-
 
 		/*
 		PicoClient.OnEventListener mPicoOnEventListener = new PicoClient.OnEventListener() {
@@ -469,6 +472,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	 * 初始化播放首段视频的player
 	 */
 	private void initFirstPlayer() {
+		if(mMediaPlayer!=null) {
+			mMediaPlayer.stop();
+			mMediaPlayer.reset();
+			mMediaPlayer.release();
+			mMediaPlayer = null;
+			mPlayState = PLAYER_STATE_STOPED;
+		}
 		mMediaPlayer = new MediaPlayer();
 		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mMediaPlayer.setDisplay(surfaceHolder);
@@ -476,7 +486,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 					@Override
 					public void onCompletion(MediaPlayer mp) {
-						onVideoPlayCompleted();
+						onVideoPlayCompleted(true);
 					}
 				});
 		mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
@@ -509,7 +519,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		    @Override public boolean onError(MediaPlayer mp,int what, int extra)
             {
                 Log.d(TAG, "OnError - Error code: " + what + " Extra code: " + extra);
-				onVideoPlayCompleted();
+				//onVideoPlayCompleted(false);
                 return false;
             }
 
@@ -524,19 +534,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 	private void startPlay(String url) {
 		try {
-			//mMediaPlayer.setDataSource(url);
-            /*
-			String path = FileUtil.getExternalCacheDir(getApplicationContext());
-            if(playindex>2) playindex =0;
-			if(playindex==0) {
-				url = "http://127.0.0.1:8081/" + path + "/video/playlist.m3u8";
-			}else if(playindex ==1) {
-				url = "http://127.0.0.1:8081/" + path + "/b5562967-6325-4f3f-b574-5d56ecd39256/playlist.m3u8";
-			}else if(playindex==2) {
-				url = "http://127.0.0.1:8081/" + path + "/da5ba8c6-4d16-46d4-b056-cc07ce9e48cc/playlist.m3u8";
-			}
-			playindex ++;
-			*/
             //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
 			Log.d(TAG, "start play: url = " + url );
 			mMediaPlayer.setDataSource(MediaPlayerActivity.this,Uri.parse(url));
@@ -554,10 +551,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         for (int i = 0; i < childCount; i++) {
             if (relativeLayout.getChildAt(i) instanceof ImageView) {
                 ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
-                Long posid = (Long)imageView.getTag(R.id.image_key);
-                initPlayer(posid);
+                //Long posid = (Long)imageView.getTag(R.id.image_key);
+                //initPlayer(posid);
+				showImageWithIndex(imageView);
             } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
                 MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
+				//initFirstPlayer();
                 initPlayer(mMainPositionId);
             }
         }
@@ -572,7 +571,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         	if(item.getvType()==2) { //视频广告
 				//surface.setVisibility(View.VISIBLE);
 				mImageMain.setVisibility(View.GONE);
-				mMediaPlayer.reset();
 				if (url != null && url.length() > 0) {
 					startPlay(url);
 					int duration = item.getDuration();
@@ -591,17 +589,15 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 		}
     }
-	private void onVideoPlayCompleted() {
+	private void onVideoPlayCompleted(boolean completedNormal) {
 		//get next player
-		Log.i(TAG,"onVideoPlayCompleted format  isPowerOff =  " + isPowerOff);
+		Log.i(TAG,"onVideoPlayCompleted format  isPowerOff =  " + isPowerOff + "isCompleted Normal = " + completedNormal);
 		Long posid = mMainPositionId;
-		savePlayRecord(posid);
+		if(completedNormal) {
+			savePlayRecord(posid);
+		}
 		if(!isPowerOff) {
-		    if(mMediaPlayer!=null) {
-                mMediaPlayer.stop();
-                mMediaPlayer.reset();
-				mPlayState = PLAYER_STATE_STOPED;
-            }
+			initFirstPlayer();
 			initPlayer(posid);
 		}else{
 			setScreenOff(false);
@@ -928,7 +924,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void setScreenOff(boolean continuePlay){
 		if (getScreenStatus() != 0) {
 			setScreen(0);
-
 			if (IsCameraServiceOn && mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
 				RingLog.d(TAG, "Player is paused, so pause record");
 				mPublisher.pauseRecord();
@@ -1541,6 +1536,32 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 		mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
 	}
+    private void showImageWithIndex(ImageView imageView) {
+		Long posid = (Long)imageView.getTag(R.id.image_key);
+		PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid);
+		if(item!=null) {
+			String path = item.getPath();
+			boolean isEncrypt = item.isEncrypt();
+			if(isEncrypt) {
+				RingLog.d("dec file start ");
+				InputStream fis = encApi.DecryptFile(path);
+				if (fis != null) {
+					RingLog.d("dec file sucess ");
+					Bitmap bm = BitmapFactory.decodeStream(fis);
+					if (bm != null) imageView.setImageBitmap(bm);
+				} else {
+					RingLog.d("dec file failed ");
+				}
+			}else{
+				Bitmap bm = BitmapFactory.decodeFile(path);
+				if(bm!=null) imageView.setImageBitmap(bm);
+			}
+		}
+		Message msg = new Message();
+		msg.what = UPDATE_IMAGE_AD_CMD;
+		msg.obj = imageView;
+		mHandler.sendMessageDelayed(msg,item.getDuration()*1000);
+    }
 
 	private void removeImageView() {
 		int childCount = relativeLayout.getChildCount();

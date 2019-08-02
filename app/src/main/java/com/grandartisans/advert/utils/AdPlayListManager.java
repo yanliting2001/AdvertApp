@@ -1,28 +1,21 @@
 package com.grandartisans.advert.utils;
 
 import android.content.Context;
-import android.content.Entity;
-import android.net.Uri;
 import android.util.Log;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.grandartisans.advert.app.AdvertApp;
-import com.grandartisans.advert.dbutils.PlayRecord;
 import com.grandartisans.advert.interfaces.AdListEventListener;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
-import com.grandartisans.advert.model.entity.res.AdvertFile;
 import com.grandartisans.advert.model.entity.res.AdvertInfoData;
 import com.grandartisans.advert.model.entity.res.AdvertPosition;
-import com.grandartisans.advert.model.entity.res.AdvertPositionVo;
-import com.grandartisans.advert.model.entity.res.AdvertVo;
 import com.grandartisans.advert.model.entity.res.AdvertWeatherData;
-import com.grandartisans.advert.model.entity.res.DateScheduleVo;
-import com.grandartisans.advert.model.entity.res.TemplateRegion;
-import com.grandartisans.advert.model.entity.res.TimeScheduleVo;
 import com.ljy.devring.DevRing;
+import com.ljy.devring.util.FileUtil;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +44,7 @@ public class AdPlayListManager {
         }
         return mPlayListInstance;
     }
-    public boolean init(){
+    public boolean init(Context context){
         boolean res = false;
         String jsondata = DevRing.cacheManager().diskCache("advertMap").getString("playMap");
         Gson gson = new Gson();
@@ -62,23 +55,21 @@ public class AdPlayListManager {
                 mAdvertIndex.put(id,0);
             }
         }
-        File path = new File("/system/media/advertList");
-        if(path.exists()) {
-            File[] files = path.listFiles();// 读取文件夹下文件
-            for (int i = 0; i < files.length; i++) {
-                PlayingAdvert item = new PlayingAdvert();
-                Log.i(TAG,"interal file = " + files[i].getAbsolutePath());
-                item.setPath(files[i].getAbsolutePath());
-                //item.setPath("http://update.thewaxseal.cn/videos/defaultvideo.mp4");
-                adurls_local.add(item);
+        String destPath = FileUtil.getExternalCacheDir(context);
+        File file = new File(destPath + "/default");
+        if(!file.exists()){
+            FileOperator.copyFileFromAsserts(context,"default.zip","default.zip",destPath);
+            File zipfile = new File(destPath+"/default.zip");
+            try {
+                ZipUtils.upZipFile(zipfile,destPath);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        }else {
-            PlayingAdvert item = new PlayingAdvert();
-            Uri mUri = Uri.parse("android.resource://" + "com.grandartisans.advert" + "/raw/video1");
-            //item.setPath(mUri.getPath());
-            item.setPath(mUri.toString());
-            adurls_local.add(item);
         }
+        PlayingAdvert item = new PlayingAdvert();
+        String url = "http://127.0.0.1:8769/"+destPath + "/default/playlist.m3u8";
+        item.setPath(url);
+        adurls_local.add(item);
         return false;
     }
     public void  registerListener(AdListEventListener listener){
@@ -116,7 +107,7 @@ public class AdPlayListManager {
         if(adurls!=null && adurls.size()>0) {
             //Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
             //Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
-            playAdvertItem  = findPlayUrl(playindex);
+            playAdvertItem  = findPlayUrl(positionId,playindex);
             if(playAdvertItem!=null) {
                 urlvalid = true;
                 int index = playindex % adurls.size();
@@ -139,12 +130,12 @@ public class AdPlayListManager {
             playAdvertItem.setvType(2);
             playAdvertItem.setDuration(15);
             AdvertApp.setPlayingAdvert(playAdvertItem);
+            mAdvertIndex.put(positionId,++playindex);
         }
-        mAdvertIndex.put(positionId,++playindex);
         lock.unlock();
         return playAdvertItem;
     }
-    private PlayingAdvert findPlayUrl(int playindex){
+    private PlayingAdvert findPlayUrl(Long positionId,int playindex){
         String url="";
         PlayingAdvert playAdvertItem=null;
         int size = adurls.size();
@@ -175,6 +166,7 @@ public class AdPlayListManager {
             }
         }
         if(url!=null && !url.isEmpty()) {
+            mAdvertIndex.put(positionId,++playindex);
             return playAdvertItem;
         }else return null;
     }

@@ -4,13 +4,14 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "com.grandartisans.advert"
-        minSdkVersion 21
+        minSdkVersion 19
         targetSdkVersion 27
-        versionCode 39
-        versionName "1.1.28"
+        versionCode 42
+        versionName "1.1.30"
         ndk {
             abiFilters "armeabi-v7a"
         }
+        multiDexEnabled true
     }
     sourceSets {
         main {
@@ -38,9 +39,6 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:3.8.0'
     implementation 'com.android.support.constraint:constraint-layout:1.1.0'
 
-
-
-    compile(name: 'library-multidownload', ext: 'aar')
     compile(name: 'devring-debug', ext: 'aar')
     compile(name: 'library-yasea', ext: 'aar')
     compile 'org.xutils:xutils:3.3.36'
@@ -68,4 +66,5 @@ dependencies {
     provided files('libs/pico.jar')
     implementation files('libs/bcprov-jdk15on-1.59.jar')
     implementation files('libs/junjiangSdk.jar')
+    compile 'com.android.support:multidex:1.0.1'
 }
