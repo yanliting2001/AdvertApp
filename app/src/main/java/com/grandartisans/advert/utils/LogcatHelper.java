@@ -87,6 +87,13 @@ public class LogcatHelper {
 			mLogDumper = null;
 		}
 	}
+
+	public boolean isRunning(){
+		if(mLogDumper!=null){
+			return mLogDumper.isRunning();
+		}
+		return false;
+	}
  
 	public void sendLogMessageTask(final String url)
 	{
@@ -207,6 +214,9 @@ public class LogcatHelper {
  
 		public void stopLogs() {
 			mRunning = false;
+		}
+		public boolean isRunning(){
+			return mRunning;
 		}
  
 		private boolean checkFileMaxSize(String file){

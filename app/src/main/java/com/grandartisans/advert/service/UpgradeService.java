@@ -568,8 +568,9 @@ public class UpgradeService extends Service {
                 case UPLOAD_LOGCAT_CMD:
                     if(logHelper!=null) {
                         logHelper.sendLogMessage(END_POINT);
-                        removeMessages(UPLOAD_LOGCAT_CMD);
-                        sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
+                        //removeMessages(UPLOAD_LOGCAT_CMD);
+                        LogcatDumpStop();
+                        //sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
                     }
                     break;
                 default:
@@ -592,12 +593,10 @@ public class UpgradeService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        /*
+
         LogcatHelper.init(getApplicationContext());
         logHelper = LogcatHelper.getInstance(getApplicationContext());
-        logHelper.start();
-        mHandler.sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
-        */
+
         mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
         if(SystemInfoManager.isClassExist("android.prj.PrjManager")) {
             prjmanager = PrjSettingsManager.getInstance(this);
@@ -616,6 +615,16 @@ public class UpgradeService extends Service {
         super.onDestroy();
     }
 
+    private void LogcatDumpStart(){
+        if(logHelper!=null) {
+            logHelper.start();
+            mHandler.sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD, UPLOAD_LOGCAT_INTERVAL_TIME);
+        }
+    }
+    private void LogcatDumpStop(){
+        mHandler.removeMessages(UPLOAD_LOGCAT_CMD);
+        if(logHelper!=null) logHelper.stop();
+    }
     private void appUpgrade (Context context) {
         String signed="";
         AdvertModel mIModel = new AdvertModel();
@@ -994,6 +1003,8 @@ public class UpgradeService extends Service {
                                     }
                                 }else if(dataItem.getEventID().equals("1012")){ /*录制监播视频*/
                                     if(mPlayListManager!=null) mPlayListManager.setOnRecorderStart();
+                                }else if(dataItem.getEventID().equals("1013")){/*上传日志*/
+                                    LogcatDumpStart();
                                 }
                             }
                         }
@@ -1325,7 +1336,7 @@ public class UpgradeService extends Service {
         }
         if(finished) {
             mPlayListManager.updatePlayList(mAdMap);
-            mPlayListManager.saveAdvertVersion(mAdverPositions);
+            //mPlayListManager.saveAdvertVersion(mAdverPositions);
             if(mAdverPositions!=null && mAdverPositions.size()>0) {
                 ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
             }
@@ -1478,7 +1489,7 @@ public class UpgradeService extends Service {
         checkAvailableStorage();
         File fileCheck = new File(FileUtil.getExternalCacheDir(getApplicationContext()), fileName);
         if (fileCheck.exists() && fileCheck.length() >0 ) {
-            if(EncryptUtil.md5sum(filePath).equals(fileMd5.toLowerCase()))
+            if(fileMd5!=null && EncryptUtil.md5sum(filePath).equals(fileMd5.toLowerCase()))
             {
                 if(type ==1 ) {
                     Message msg = new Message();
