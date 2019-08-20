@@ -205,7 +205,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private int mPlayingAdDuration;
 	private Long mPlayingAdType;
 
-	private boolean mContinuePlayWhenScreenOff = true;
+	private boolean mContinuePlayWhenScreenOff = false;
 
 	private  Api encApi=null;
 
@@ -220,7 +220,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					break;
 				case START_PLAYER_CMD:
 					//initPlayer();
-					initFirstPlayer();
                     initAdFiles();
 					break;
 				case START_OPEN_SERIALPORT:
@@ -480,6 +479,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mPlayState = PLAYER_STATE_STOPED;
 		}
 		mMediaPlayer = new MediaPlayer();
+		mMediaPlayer.reset();
 		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mMediaPlayer.setDisplay(surfaceHolder);
 		mMediaPlayer
@@ -537,7 +537,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
 			Log.d(TAG, "start play: url = " + url );
 			mMediaPlayer.setDataSource(MediaPlayerActivity.this,Uri.parse(url));
-			mMediaPlayer.prepareAsync();
+			try{
+				mMediaPlayer.prepareAsync();
+			}catch(IllegalStateException e) {
+				mMediaPlayer.release();
+				mMediaPlayer = null;
+				onVideoPlayCompleted(true);
+			}
 			//mMediaPlayer.prepare();
 			//mMediaPlayer.start();
 		} catch (IOException e) {
@@ -547,6 +553,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initAdFiles(){
+		initFirstPlayer();
         int childCount = relativeLayout.getChildCount();
         for (int i = 0; i < childCount; i++) {
             if (relativeLayout.getChildAt(i) instanceof ImageView) {
@@ -683,6 +690,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			Log.i(TAG,"Stop mMediaPlayer");
 			mMediaPlayer.stop();
 			mMediaPlayer.release();
+			mMediaPlayer=null;
 		}
 		surface = null;
 		surfaceHolder = null;
@@ -749,6 +757,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		if(mMediaPlayer!=null && mMediaPlayer.isPlaying()) {
 			mMediaPlayer.stop();
 			mMediaPlayer.release();
+			mMediaPlayer=null;
 		}
 		EventBus.getDefault().unregister(this);
 		mElevatorDoorManager.closeSeriaPort();
@@ -924,6 +933,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void setScreenOff(boolean continuePlay){
 		if (getScreenStatus() != 0) {
 			setScreen(0);
+			RingLog.d(TAG, "setScreenOff IsCameraServiceOn = " + IsCameraServiceOn);
+			if(IsCameraServiceOn) {
+				if (mCameraService != null){
+					RingLog.d(TAG, "setScreenOff RecorderFinishStatus=" + mCameraService.getFinishStatus() + "RecordeStatus=" + mCameraService.getRecordStatus());
+				}else {
+					RingLog.d(TAG,"setScreenOff mCameraService is null");
+				}
+			}
 			if (IsCameraServiceOn && mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
 				RingLog.d(TAG, "Player is paused, so pause record");
 				mPublisher.pauseRecord();
@@ -955,6 +972,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					if (remainingTime < 0) remainingTime = Long.valueOf(mPlayingAdDuration * 1000);
 					RingLog.d(TAG, "Player is resumed, remainingTime = " + remainingTime);
 					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD, remainingTime);
+			}
+			RingLog.d(TAG, "setScreenOn IsCameraServiceOn = " + IsCameraServiceOn);
+			if(IsCameraServiceOn) {
+				if (mCameraService != null){
+					RingLog.d(TAG, "setScreenOn RecorderFinishStatus=" + mCameraService.getFinishStatus() + "RecordeStatus=" + mCameraService.getRecordStatus());
+				}else {
+					RingLog.d(TAG,"setScreenOn mCameraService is null");
+				}
 			}
 			if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
 				RingLog.d(TAG, "Player is resumed, now resume record");
@@ -1284,6 +1309,15 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		@Override
 		public void onRecordFinished(String path){
 			ReportAdListUpdate(path);
+		}
+		@Override
+		public void onRecordStart(){
+			if(getScreenStatus()==0){
+				if (IsCameraServiceOn && mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
+					RingLog.d(TAG, "onRecordStart Screen is off, so pause record");
+					mPublisher.pauseRecord();
+				}
+			}
 		}
 	};
 	@Override
@@ -1696,7 +1730,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		//parameter.setIp();
 		parameter.setTimestamp(System.currentTimeMillis());
 		AdvertModel mIModel = new AdvertModel();
-
 		DevRing.httpManager().commonRequest(mIModel.reportEvent(parameter), new CommonObserver<ReportInfoResult>() {
 			@Override
 			public void onResult(ReportInfoResult result) {

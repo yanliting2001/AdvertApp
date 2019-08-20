@@ -16,8 +16,14 @@ import com.alibaba.sdk.android.oss.ClientException;
 import com.alibaba.sdk.android.oss.OSS;
 import com.alibaba.sdk.android.oss.OSSClient;
 import com.alibaba.sdk.android.oss.ServiceException;
+import com.alibaba.sdk.android.oss.callback.OSSCompletedCallback;
+import com.alibaba.sdk.android.oss.callback.OSSProgressCallback;
 import com.alibaba.sdk.android.oss.common.auth.OSSCredentialProvider;
 import com.alibaba.sdk.android.oss.common.auth.OSSPlainTextAKSKCredentialProvider;
+import com.alibaba.sdk.android.oss.internal.OSSAsyncTask;
+import com.alibaba.sdk.android.oss.model.CompleteMultipartUploadResult;
+import com.alibaba.sdk.android.oss.model.OSSRequest;
+import com.alibaba.sdk.android.oss.model.ObjectMetadata;
 import com.alibaba.sdk.android.oss.model.PutObjectRequest;
 import com.alibaba.sdk.android.oss.model.PutObjectResult;
 import com.github.faucamp.simplertmp.RtmpHandler;
@@ -147,6 +153,8 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         // 打开计时器
         isRecord = true;
         startPublishRecordTimer();
+        if(mRecorderEventListener!=null)
+            mRecorderEventListener.onRecordStart();
     }
 
 
@@ -161,10 +169,10 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
             cameraNeedStop = false;
         } else {
             RingLog.d(TAG, "Now stop record, upload it to server");
-            //destroyTimer();
             if(CommonUtil.haveUdisk()) {
                 mHandler.sendEmptyMessageDelayed(RESTART_RECORD,3*1000);
             }else {
+                destroyTimer();
                 recordHasFinished = true;
                 mHandler.sendEmptyMessage(UPLOAD_FILE);
             }
@@ -251,6 +259,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
 
     public void startCameraRecord(SrsPublisher publisher) {
         RingLog.d(TAG, "Open Record Camera");
+        recordHasFinished = false;
         if(CommonUtil.haveUdisk()) removeOlderFiles();
         deviceId = SystemInfoManager.readFromNandkey("usid");
         if (deviceId == null) {
@@ -351,12 +360,12 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         mTimerTask = new TimerTask() {
             @Override
             public void run() {
+                if(isRecord) mTimerCount += 1;
                 if (isRecord && mTimerCount > stopTimeCount) {
                     // 已录制一分钟 停止录像
                     mPublisher.stopRecord();
                     return;
                 }
-                mTimerCount += 1;
             }
         };
         mTimer = new Timer();
@@ -384,7 +393,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         conf.setConnectionTimeout(15 * 1000);   // 连接超时，默认15秒
         conf.setSocketTimeout(15 * 1000);   // socket超时，默认15秒
         conf.setMaxConcurrentRequest(5);    // 最大并发请求数，默认5个
-        conf.setMaxErrorRetry(2);   // 失败后最大重试次数，默认2次
+        conf.setMaxErrorRetry(30);   // 失败后最大重试次数，默认2次
         OSS oss = new OSSClient(getApplicationContext(), END_POINT, credentialProvider, conf);
         RingLog.d(TAG, "OSS Init");
         uploadFile(oss);
@@ -396,10 +405,52 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         RingLog.d(TAG, "Upload Start");
         String date = getCurrentDate();
         //String fileName = deviceId + "_" + date + ".mp4";
-        String objectKey = OBJECT_KEY_DIR + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId +getFileName()+ ".mp4";
+        final String objectKey = OBJECT_KEY_DIR + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId +getFileName()+ ".mp4";
         String recordFilePath = recordPath + "/" + deviceId + ".mp4";
         RingLog.d(TAG, "File name: " + objectKey);
         PutObjectRequest put = new PutObjectRequest(BUCKET_NAME, objectKey, recordFilePath);
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType("application/octet-stream");
+        put.setMetadata(metadata);
+        put.setCRC64(OSSRequest.CRC64Config.YES);
+        put.setProgressCallback(new OSSProgressCallback<PutObjectRequest>() {
+            @Override
+            public void onProgress(PutObjectRequest request, long currentSize, long totalSize) {
+                //Log.d(TAG, "currentSize: " + currentSize + " totalSize: " + totalSize);
+            }
+        });
+        OSSAsyncTask task = oss.asyncPutObject(put, new OSSCompletedCallback<PutObjectRequest, PutObjectResult>() {
+            @Override
+            public void onSuccess(PutObjectRequest request, PutObjectResult result) {
+                Log.d(TAG,"uploadSuccess");
+                if(mRecorderEventListener!=null) mRecorderEventListener.onRecordFinished(objectKey);
+                uploadSuccess = true;
+            }
+
+            @Override
+            public void onFailure(PutObjectRequest request, ClientException clientException, ServiceException serviceException) {
+                uploadSuccess = false;
+                Log.d(TAG,"uploadFailed");
+                mHandler.removeMessages(UPLOAD_FILE);
+                mHandler.sendEmptyMessageDelayed(UPLOAD_FILE,30*1000);
+                // Request exception
+                if (clientException != null) {
+                    // Local exception, such as a network exception
+                    clientException.printStackTrace();
+                }
+                if (serviceException != null) {
+                    // Service exception
+                    Log.d(TAG,"ErrorCode="+ serviceException.getErrorCode());
+                    Log.d(TAG,"RequestId=" + serviceException.getRequestId());
+                    Log.d(TAG,"HostId=" + serviceException.getHostId());
+                    Log.d(TAG,"RawMessage=" + serviceException.getRawMessage());
+                }
+            }
+            // task.cancel(); // Cancel the task
+
+            // task.waitUntilFinished(); // Wait till the task is finished
+        });
+        /*
         try {
             PutObjectResult putObjectResult = oss.putObject(put);
             RingLog.d(TAG, "PubObject: Upload Success");
@@ -421,6 +472,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
             RingLog.d(TAG, "RawMessage is: " + e.getRawMessage());
             uploadSuccess = false;
         }
+        */
     }
 
     private String getCurrentDate() {

@@ -69,7 +69,7 @@ public class M3u8Server extends fi.iki.elonen.NanoHTTPD {
     	
     	String url = String.valueOf(session.getUri());
     	
-    	Log.d(TAG, "请求URL：" + url);
+    	//Log.d(TAG, "请求URL：" + url);
     	
     	File file = new File(url);
     	
