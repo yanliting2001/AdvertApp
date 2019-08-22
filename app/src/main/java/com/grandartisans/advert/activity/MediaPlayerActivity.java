@@ -166,10 +166,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
-	static final int PLAYER_STATE_PLAYING = 1;
-	static final int PLAYER_STATE_PAUSED = 2;
-	static final int PLAYER_STATE_STOPED = 3;
-	static final int PLAYER_STATE_RELEASED = 4;
+	static final int PLAYER_STATE_PREPARING = 1;
+	static final int PLAYER_STATE_PLAYING = 2;
+	static final int PLAYER_STATE_PAUSED = 3;
+	static final int PLAYER_STATE_STOPED = 4;
+	static final int PLAYER_STATE_RELEASED = 5;
 	private int mPlayState = PLAYER_STATE_INIT;
 
 	public static SrsCameraView mCameraView;
@@ -361,6 +362,84 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			//initPowerOnAlarm(13,10,00);
 		}
 	};
+
+	private void onPlayerCmd(String cmd,String url){
+		if(cmd.equals("reset")){
+			if(getPlayerState()==PLAYER_STATE_PLAYING){
+				PlayerStop();
+			}
+			PlayerRelease();
+			initFirstPlayer();
+		}else if(cmd.equals("source")){
+			if(getPlayerState()==PLAYER_STATE_INIT) {
+				setDataSource(url);
+			}
+		}
+		else if(cmd.equals("start")){
+			if(getPlayerState()==PLAYER_STATE_PREPARING) {
+				PlayerStart();
+			}
+		}
+		else if(cmd.equals("pause")){
+			if(getPlayerState()==PLAYER_STATE_PLAYING){
+				PlayerPause();
+			}
+		}else if(cmd.equals("resume")) {
+			if(getPlayerState()==PLAYER_STATE_PAUSED){
+				PlayerResume();
+			}
+		}else if(cmd.equals("stop")){
+			if(getPlayerState()==PLAYER_STATE_PLAYING
+					|| getPlayerState()==PLAYER_STATE_PAUSED) {
+				PlayerStop();
+			}
+			setPlayerState(PLAYER_STATE_STOPED);
+		}else if(cmd.equals("release")){
+			if(getPlayerState()==PLAYER_STATE_PLAYING
+					|| getPlayerState()==PLAYER_STATE_PAUSED) {
+				PlayerStop();
+			}
+			PlayerRelease();
+		}
+
+	}
+	private void setPlayerState(int state){
+		mPlayState = state;
+	}
+	private int getPlayerState(){
+		return mPlayState;
+	}
+	private void PlayerStart(){
+		if(mMediaPlayer!=null){
+			mMediaPlayer.start();
+			setPlayerState(PLAYER_STATE_PLAYING);
+		}
+	}
+	private void PlayerPause(){
+		if(mMediaPlayer!=null) {
+			mMediaPlayer.pause();
+			setPlayerState(PLAYER_STATE_PAUSED);
+		}
+	}
+	private void PlayerResume(){
+		if(mMediaPlayer!=null) {
+			mMediaPlayer.start();
+			setPlayerState(PLAYER_STATE_PLAYING);
+		}
+	}
+	private void PlayerStop(){
+		if(mMediaPlayer!=null) {
+			mMediaPlayer.stop();
+		}
+		setPlayerState(PLAYER_STATE_STOPED);
+	}
+	private void PlayerRelease(){
+		if(mMediaPlayer!=null){
+			mMediaPlayer.release();
+			mMediaPlayer = null;
+		}
+		setPlayerState(PLAYER_STATE_RELEASED);
+	}
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -471,13 +550,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	 * 初始化播放首段视频的player
 	 */
 	private void initFirstPlayer() {
-		if(mMediaPlayer!=null) {
-			mMediaPlayer.stop();
-			mMediaPlayer.reset();
-			mMediaPlayer.release();
-			mMediaPlayer = null;
-			mPlayState = PLAYER_STATE_STOPED;
-		}
 		mMediaPlayer = new MediaPlayer();
 		mMediaPlayer.reset();
 		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
@@ -495,21 +567,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight() + "screenStatus = " + getScreenStatus());
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                 mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
-                mMediaPlayer.start();
+				onPlayerCmd("start","");
                 if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()&&!CommonUtil.haveUdisk()) {
                     RingLog.d(TAG, "Player is resumed, now resume record");
                     mPublisher.resumeRecord();
                 }
                 if(!mContinuePlayWhenScreenOff) {
 					if (getScreenStatus() == 0) {
-						mMediaPlayer.pause();
-						mPlayState = PLAYER_STATE_PAUSED;
-					}
-				}
-			    if(mMode.equals("AOSP on p313")) {
-					if (player_first_time == true) {
-						player_first_time = false;
-						mMediaPlayer.seekTo(mMediaPlayer.getDuration());
+						onPlayerCmd("pause","");
 					}
 				}
 			}
@@ -530,22 +595,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				Log.d(TAG, "setOnVideoSizeChangedListener  width: " + width + "height: " + height);
 			}
 		});
-
+		setPlayerState(PLAYER_STATE_INIT);
 	}
-	private void startPlay(String url) {
+	private void setDataSource(String url) {
 		try {
             //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
 			Log.d(TAG, "start play: url = " + url );
 			mMediaPlayer.setDataSource(MediaPlayerActivity.this,Uri.parse(url));
 			try{
 				mMediaPlayer.prepareAsync();
+				setPlayerState(PLAYER_STATE_PREPARING);
 			}catch(IllegalStateException e) {
-				mMediaPlayer.release();
-				mMediaPlayer = null;
+				onPlayerCmd("release","");
 				onVideoPlayCompleted(true);
 			}
-			//mMediaPlayer.prepare();
-			//mMediaPlayer.start();
 		} catch (IOException e) {
 			// TODO 自动生成的 catch 块
 			e.printStackTrace();
@@ -553,17 +616,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initAdFiles(){
-		initFirstPlayer();
+		onPlayerCmd("reset","");
         int childCount = relativeLayout.getChildCount();
         for (int i = 0; i < childCount; i++) {
             if (relativeLayout.getChildAt(i) instanceof ImageView) {
                 ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
-                //Long posid = (Long)imageView.getTag(R.id.image_key);
-                //initPlayer(posid);
 				showImageWithIndex(imageView);
             } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
                 MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
-				//initFirstPlayer();
                 initPlayer(mMainPositionId);
             }
         }
@@ -579,7 +639,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				//surface.setVisibility(View.VISIBLE);
 				mImageMain.setVisibility(View.GONE);
 				if (url != null && url.length() > 0) {
-					startPlay(url);
+					onPlayerCmd("source",url);
 					int duration = item.getDuration();
 					mPlayingAdDuration = duration;
 					mStartPlayTime = System.currentTimeMillis();
@@ -604,7 +664,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			savePlayRecord(posid);
 		}
 		if(!isPowerOff) {
-			initFirstPlayer();
+			onPlayerCmd("reset","");
 			initPlayer(posid);
 		}else{
 			setScreenOff(false);
@@ -686,12 +746,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mHandler.removeMessages(START_OPEN_SERIALPORT);
 		}
 		if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
-		if(mMediaPlayer!=null) {
-			Log.i(TAG,"Stop mMediaPlayer");
-			mMediaPlayer.stop();
-			mMediaPlayer.release();
-			mMediaPlayer=null;
-		}
+		onPlayerCmd("release","");
 		surface = null;
 		surfaceHolder = null;
 		if (IsNetworkServiceOn) {
@@ -754,11 +809,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		super.onDestroy();
 		Log.i(TAG,"onDestroy");
 		releaseWakeLock();
-		if(mMediaPlayer!=null && mMediaPlayer.isPlaying()) {
-			mMediaPlayer.stop();
-			mMediaPlayer.release();
-			mMediaPlayer=null;
-		}
+		onPlayerCmd("release","");
 		EventBus.getDefault().unregister(this);
 		mElevatorDoorManager.closeSeriaPort();
 		if (IsNetworkServiceOn) {
@@ -929,7 +980,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			prjmanager.setScreen(enable);
 		}
 	}
-
 	private void setScreenOff(boolean continuePlay){
 		if (getScreenStatus() != 0) {
 			setScreen(0);
@@ -947,10 +997,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 			if(!continuePlay) {
 				if (mPlayingAdType == 2) {
-					if (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
-						mMediaPlayer.pause();
-						mPlayState = PLAYER_STATE_PAUSED;
-					}
+					onPlayerCmd("pause","");
 				} else if (mPlayingAdType == 1) {
 					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 					mPausePlayTime = System.currentTimeMillis();
@@ -963,9 +1010,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		if(getScreenStatus()!=1 ) {
 			setScreen(1);
 			if (mPlayingAdType == 2) {
-					if (mMediaPlayer != null && mPlayState == PLAYER_STATE_PAUSED) {
-						mMediaPlayer.start();
-					}
+					onPlayerCmd("resume","");
 			} else if (mPlayingAdType == 1) {
 					Long playedTime = mPausePlayTime - mStartPlayTime;
 					Long remainingTime = mPlayingAdDuration * 1000 - playedTime;
