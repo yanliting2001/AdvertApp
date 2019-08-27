@@ -53,6 +53,7 @@ public class AdvertFile {
      */
     private Long fileSize;
 
+    private Long vtype;
     /**
      * 文件md5|1|1|1
      */
@@ -60,22 +61,6 @@ public class AdvertFile {
 
     private String remark1;
     private String remark2;
-
-    public String getRemark2() {
-        return remark2;
-    }
-
-    public void setRemark2(String remark2) {
-        this.remark2 = remark2;
-    }
-
-    public String getRemark1() {
-        return remark1;
-    }
-
-    public void setRemark1(String remark1) {
-        this.remark1 = remark1;
-    }
 
     /**
      * 视频时长|1|1|1|单位 秒
@@ -138,6 +123,14 @@ public class AdvertFile {
         this.fileMd5 = fileMd5;
     }
 
+    public Long getVtype() {
+        return vtype;
+    }
+
+    public void setVtype(Long vtype) {
+        this.vtype = vtype;
+    }
+
     public Integer getVideoDuration() {
         return videoDuration;
     }
@@ -145,4 +138,21 @@ public class AdvertFile {
     public void setVideoDuration(Integer videoDuration) {
         this.videoDuration = videoDuration;
     }
+
+    public String getRemark2() {
+        return remark2;
+    }
+
+    public void setRemark2(String remark2) {
+        this.remark2 = remark2;
+    }
+
+    public String getRemark1() {
+        return remark1;
+    }
+
+    public void setRemark1(String remark1) {
+        this.remark1 = remark1;
+    }
+
 }

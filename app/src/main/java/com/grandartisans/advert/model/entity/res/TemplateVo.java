@@ -32,36 +32,21 @@ public class TemplateVo {
 	
 	private Template template;
 	
-	private List<TemplateRegion> regionList = new ArrayList<>();
+	private List<TemplateReginVo> regionList = new ArrayList<>();
 
-	/**
-	 * @return the template
-	 */
 	public Template getTemplate() {
 		return template;
 	}
 
-	/**
-	 * @param template the template to set
-	 */
 	public void setTemplate(Template template) {
 		this.template = template;
 	}
 
-	/**
-	 * @return the regionList
-	 */
-	public List<TemplateRegion> getRegionList() {
+	public List<TemplateReginVo> getRegionList() {
 		return regionList;
 	}
 
-	/**
-	 * @param regionList the regionList to set
-	 */
-	public void setRegionList(List<TemplateRegion> regionList) {
+	public void setRegionList(List<TemplateReginVo> regionList) {
 		this.regionList = regionList;
 	}
-	
-
-	
 }

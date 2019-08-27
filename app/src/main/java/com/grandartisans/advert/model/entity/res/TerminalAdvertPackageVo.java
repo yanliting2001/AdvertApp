@@ -9,7 +9,9 @@
 package com.grandartisans.advert.model.entity.res;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,77 +30,22 @@ import java.util.Map;
  */
 @SuppressWarnings("serial")
 public class TerminalAdvertPackageVo {
-	
-	
     private String deviceClientid;
-	
-	private TemplateVo template;
-	/**
-	 * 模板上区域和排期的对应关系，key为区域id，value为广告位
-	 */
-    private Map<String,Long> relationMap = new HashMap<>();
-    /**
-     * 排期上信息，key为排期编号，value为广告排期
-     */
-    private Map<Long, AdvertPositionVo> advertPositionMap = new HashMap<>();
+	private List<AdvertScheduleVo> advertSchedules = new ArrayList<>();
 
-	/**
-	 * @return the deviceClientid
-	 */
 	public String getDeviceClientid() {
 		return deviceClientid;
 	}
 
-	/**
-	 * @param deviceClientid the deviceClientid to set
-	 */
 	public void setDeviceClientid(String deviceClientid) {
 		this.deviceClientid = deviceClientid;
 	}
 
-	/**
-	 * @return the template
-	 */
-	public TemplateVo getTemplate() {
-		return template;
+	public List<AdvertScheduleVo> getAdvertSchedules() {
+		return advertSchedules;
 	}
 
-	/**
-	 * @param template the template to set
-	 */
-	public void setTemplate(TemplateVo template) {
-		this.template = template;
+	public void setAdvertSchedules(List<AdvertScheduleVo> advertSchedules) {
+		this.advertSchedules = advertSchedules;
 	}
-
-	/**
-	 * @return the relationMap
-	 */
-	public Map<String, Long> getRelationMap() {
-		return relationMap;
-	}
-
-	/**
-	 * @param relationMap the relationMap to set
-	 */
-	public void setRelationMap(Map<String, Long> relationMap) {
-		this.relationMap = relationMap;
-	}
-
-	/**
-	 * @return the advertPositionMap
-	 */
-	public Map<Long, AdvertPositionVo> getAdvertPositionMap() {
-		return advertPositionMap;
-	}
-
-	/**
-	 * @param advertPositionMap the advertPositionMap to set
-	 */
-	public void setAdvertPositionMap(Map<Long, AdvertPositionVo> advertPositionMap) {
-		this.advertPositionMap = advertPositionMap;
-	}
-
-	
-    
-    
 }

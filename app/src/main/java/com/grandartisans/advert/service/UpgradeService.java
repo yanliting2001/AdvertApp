@@ -56,6 +56,7 @@ import com.grandartisans.advert.model.entity.res.AdvertFile;
 import com.grandartisans.advert.model.entity.res.AdvertInfoResult;
 import com.grandartisans.advert.model.entity.res.AdvertPosition;
 import com.grandartisans.advert.model.entity.res.AdvertPositionVo;
+import com.grandartisans.advert.model.entity.res.AdvertScheduleVo;
 import com.grandartisans.advert.model.entity.res.AdvertVo;
 import com.grandartisans.advert.model.entity.res.AdvertWeatherResult;
 import com.grandartisans.advert.model.entity.res.AppUpgradeData;
@@ -1047,8 +1048,13 @@ public class UpgradeService extends Service {
             mAdMap.clear();
             downloadList.clear();
             mAdverPositions.clear();
-            List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
-            mTemplateId = result.getData().getTemplate().getTemplate().getId();
+            //List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
+            List<AdvertScheduleVo> advertSchedules = result.getData().getAdvertSchedules();
+            //mTemplateId = result.getData().getTemplate().getTemplate().getId();
+            if(advertSchedules==null || advertSchedules.size()<=0) return;
+            for(int i=0;i<advertSchedules.size();i++){
+                AdvertScheduleVo advertScheduleVo = advertSchedules.get(i);
+            }
             for(int ii=0;ii < regionList.size();ii++) {
                 List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
                 adurls.clear();

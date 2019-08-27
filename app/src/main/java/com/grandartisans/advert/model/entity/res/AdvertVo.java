@@ -28,24 +28,7 @@ import java.util.List;
  */
 @SuppressWarnings("serial")
 public class AdvertVo {
-	
-	private Advert advert;
-	
 	private List<AdvertFile> fileList;
-
-	/**
-	 * @return the advert
-	 */
-	public Advert getAdvert() {
-		return advert;
-	}
-
-	/**
-	 * @param advert the advert to set
-	 */
-	public void setAdvert(Advert advert) {
-		this.advert = advert;
-	}
 
 	/**
 	 * @return the fileList

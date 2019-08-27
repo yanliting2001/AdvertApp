@@ -41,6 +41,7 @@ public class Template {
      */
     private String name;
 
+    private String templateId;
     /**
      * 唯一标识|2|1|1
      */
@@ -51,16 +52,18 @@ public class Template {
      */
     private int locationCount;
 
+    private Long relationId;
+
     /**
      * 分辨率编号|1|1|1
      */
-    private Long resolutionid;
+    private Long rateid;
 
     /**
 
      * 分辨率|1|1|1
      */
-    private String resolution;
+    private String rate;
 
     public Long getId() {
         return id;
@@ -70,11 +73,11 @@ public class Template {
         this.id = id;
     }
 
-    public Integer getStatus() {
+    public int getStatus() {
         return status;
     }
 
-    public void setStatus(Integer status) {
+    public void setStatus(int status) {
         this.status = status;
     }
 
@@ -85,6 +88,7 @@ public class Template {
     public void setName(String name) {
         this.name = name;
     }
+
     public String getIdent() {
         return ident;
     }
@@ -92,26 +96,44 @@ public class Template {
     public void setIdent(String ident) {
         this.ident = ident;
     }
-    public Integer getLocationCount() {
+
+    public String getTemplateId() {
+        return templateId;
+    }
+
+    public void setTemplateId(String templateId) {
+        this.templateId = templateId;
+    }
+
+    public int getLocationCount() {
         return locationCount;
     }
 
-    public void setLocationCount(Integer locationCount) {
+    public void setLocationCount(int locationCount) {
         this.locationCount = locationCount;
     }
-    public Long getResolutionid() {
-        return resolutionid;
+
+    public Long getRelationId() {
+        return relationId;
     }
 
-    public void setResolutionid(Long resolutionid) {
-        this.resolutionid = resolutionid;
-    }
-    public String getResolution() {
-        return resolution;
+    public void setRelationId(Long relationId) {
+        this.relationId = relationId;
     }
 
-    public void setResolution(String resolution) {
-        this.resolution = resolution;
+    public Long getRateid() {
+        return rateid;
     }
 
+    public void setRateid(Long rateid) {
+        this.rateid = rateid;
+    }
+
+    public String getRate() {
+        return rate;
+    }
+
+    public void setRate(String rate) {
+        this.rate = rate;
+    }
 }
