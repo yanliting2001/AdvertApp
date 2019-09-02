@@ -22,9 +22,9 @@ import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -37,6 +37,7 @@ import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -81,7 +82,6 @@ import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
 import com.grandartisans.advert.utils.ViewUtils;
 import com.grandartisans.advert.view.MarqueeTextView;
-import com.grandartisans.advert.view.MySurfaceView;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.http.support.observer.CommonObserver;
 import com.ljy.devring.other.RingLog;
@@ -99,10 +99,17 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import gartisans.hardware.pico.PicoClient;
 
+import io.vov.vitamio.LibsChecker;
+import io.vov.vitamio.MediaPlayer;
+import io.vov.vitamio.MediaPlayer.OnBufferingUpdateListener;
+import io.vov.vitamio.MediaPlayer.OnCompletionListener;
+import io.vov.vitamio.MediaPlayer.OnPreparedListener;
+import io.vov.vitamio.MediaPlayer.OnVideoSizeChangedListener;
+
 public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback,SrsEncodeHandler.SrsEncodeListener {
 	private final String TAG = "MediaPlayerActivity";
 	private MediaPlayer mMediaPlayer;
-	private MySurfaceView surface;
+	private SurfaceView surface;
 	private ImageView mImageMain ;
 	private SurfaceHolder surfaceHolder;
     private RelativeLayout relativeLayout;
@@ -371,7 +378,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			PlayerRelease();
 			initFirstPlayer();
 		}else if(cmd.equals("source")){
-			if(getPlayerState()==PLAYER_STATE_INIT) {
+			if(getPlayerState()==PLAYER_STATE_INIT||getPlayerState()==PLAYER_STATE_STOPED) {
 				setDataSource(url);
 			}
 		}
@@ -430,6 +437,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void PlayerStop(){
 		if(mMediaPlayer!=null) {
 			mMediaPlayer.stop();
+			mMediaPlayer.reset();
 		}
 		setPlayerState(PLAYER_STATE_STOPED);
 	}
@@ -510,16 +518,19 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initView(){
+		if (!LibsChecker.checkVitamioLibs(this))
+			return;
         // 判断有无排期模板缓存 有则进行排板 无则使用默认模板
         TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
         relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
-		surface = (MySurfaceView) findViewById(R.id.surface);
+		surface = (SurfaceView) findViewById(R.id.surface);
 		mImageMain =(ImageView)findViewById(R.id.image_main);
 		mImageMain.setVisibility(View.INVISIBLE);
 
 		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
 		surfaceHolder.addCallback(this);
-		surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+        surfaceHolder.setFormat(PixelFormat.RGBX_8888);
+		//surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
 		mCameraView = (SrsCameraView) findViewById(R.id.glsurfaceview_camera);
 		mCameraView.setVisibility(View.GONE);
@@ -550,9 +561,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	 * 初始化播放首段视频的player
 	 */
 	private void initFirstPlayer() {
-		mMediaPlayer = new MediaPlayer();
+		mMediaPlayer = new MediaPlayer(this);
 		mMediaPlayer.reset();
-		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+		//mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mMediaPlayer.setDisplay(surfaceHolder);
 		mMediaPlayer
 				.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
@@ -566,7 +577,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
                 Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight() + "screenStatus = " + getScreenStatus());
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-                mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
+                //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
 				onPlayerCmd("start","");
                 if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()&&!CommonUtil.haveUdisk()) {
                     RingLog.d(TAG, "Player is resumed, now resume record");
@@ -593,6 +604,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		mMediaPlayer.setOnVideoSizeChangedListener(new MediaPlayer.OnVideoSizeChangedListener(){
 			@Override public void onVideoSizeChanged(MediaPlayer mp,int width,int height) {
 				Log.d(TAG, "setOnVideoSizeChangedListener  width: " + width + "height: " + height);
+				surfaceHolder.setFixedSize(width,height);
 			}
 		});
 		setPlayerState(PLAYER_STATE_INIT);
@@ -622,8 +634,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             if (relativeLayout.getChildAt(i) instanceof ImageView) {
                 ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
 				showImageWithIndex(imageView);
-            } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
-                MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
+            } else if(relativeLayout.getChildAt(i) instanceof SurfaceView){
+                SurfaceView surfaceView = (SurfaceView) relativeLayout.getChildAt(i);
                 initPlayer(mMainPositionId);
             }
         }
@@ -665,6 +677,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}
 		if(!isPowerOff) {
 			onPlayerCmd("reset","");
+			//onPlayerCmd("stop","");
 			initPlayer(posid);
 		}else{
 			setScreenOff(false);
@@ -811,7 +824,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		releaseWakeLock();
 		onPlayerCmd("release","");
 		EventBus.getDefault().unregister(this);
-		mElevatorDoorManager.closeSeriaPort();
+		if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
 		if (IsNetworkServiceOn) {
 			unbindService(mNetServiceConn);
 			IsNetworkServiceOn = false;

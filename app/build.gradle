@@ -62,9 +62,10 @@ dependencies {
     api 'org.greenrobot:eventbus:3.0.0'
     //用于替换fresco的网络加载为okhttp
     implementation files('libs/prjManager.jar')
-    implementation files('libs/nanohttpd-2.2.0.jar')
+    implementation files('libs/nanohttpd-2.3.1.jar')
     provided files('libs/pico.jar')
     implementation files('libs/bcprov-jdk15on-1.59.jar')
     implementation files('libs/junjiangSdk.jar')
     compile 'com.android.support:multidex:1.0.1'
+    compile project(':vitamio')
 }

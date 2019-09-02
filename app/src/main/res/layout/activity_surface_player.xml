@@ -9,7 +9,7 @@
         android:id="@+id/glsurfaceview_camera"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"/>
-    <com.grandartisans.advert.view.MySurfaceView
+    <SurfaceView
         android:layout_gravity="center"
         android:id="@+id/surface"
         android:layout_width="fill_parent"
