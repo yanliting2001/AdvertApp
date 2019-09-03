@@ -1529,11 +1529,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         return ScheduleTimesCache.get();
     }
     private void initAdView() {
-
+		/*
         List<TemplateRegion> regionList = mTerminalAdvertPackageVo.getTemplate().getRegionList();
         Map<String, Long> relationMap = mTerminalAdvertPackageVo.getRelationMap();
         if(relationMap.isEmpty()) return ;
-        int imageIndexOffset = 0;
         boolean onlyMainPos = true;
         if(regionList.size()>1){
         	onlyMainPos = false;
@@ -1562,15 +1561,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				}
             }
         }
+        */
     }
 
     private void set_view_layout(long viewType, int width, int height, int left, int top,Long adposid) {
-		/*
-		float scale = (float) 1080 / (float) 768;
-		height = (int) (height * scale);
-		if (top != 0)
-			top = (int) (top * scale);
-		*/
         RingLog.d(TAG, "set_view_layout viewType = " + viewType + "width = " + width + "height = " + height + "left = " + left + "top = " + top );
         RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(width, height);
         layoutParams.setMargins(left, top, 0, 0);

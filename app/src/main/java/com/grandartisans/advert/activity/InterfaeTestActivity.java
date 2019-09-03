@@ -270,37 +270,8 @@ public class InterfaeTestActivity extends Activity implements IBaseFragment,IBas
             public void onResult(AdListHttpResult result) {
                 //RingLog.d("getAdList ok result = " + result );
                 if(result.getStatus() ==0 ) {
-                    List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
 
-
-                    TemplateRegion region = regionList.get(0);
-                    Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
-                    AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
-                    List<DateScheduleVo> dateScheduleVos  = advertPositionVo.getDateScheduleVos();
-                    int size = dateScheduleVos.size();
-                        for(int i=0;i<size;i++) {
-                            DateScheduleVo dateSchedueVo = dateScheduleVos.get(i);
-                            DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
-                            RingLog.d("getAdList Schedue start date = " +  dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
-                            List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
-                            for(int j=0;j<TimeSchedueVos.size();j++){
-                                TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(j);
-                                TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
-                                RingLog.d("getAdList Schedue start time = " +  timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
-                                List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
-                                for(int k=0;k<packageAdverts.size();k++) {
-                                    AdvertVo advertVo = packageAdverts.get(k);
-                                    Advert advert = advertVo.getAdvert();
-                                    RingLog.d("getAdList advert name = " +  advert.getName() + "advert description :" + advert.getDescription());
-                                    List<AdvertFile> fileList= advertVo.getFileList();
-                                    for(int l=0;l<fileList.size();l++) {
-                                        AdvertFile advertFile = fileList.get(l);
-                                        RingLog.d("getAdList advert file md5  = " +  advertFile.getFileMd5() + "path= " + advertFile.getFilePath());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                }
 
             }
 
