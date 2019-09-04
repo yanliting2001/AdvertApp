@@ -170,8 +170,6 @@ public class UpgradeService extends Service {
 
     private String mUsbPath = "";
     private String mLogPath = "";
-
-    private Map<Long,List<PlayingAdvert>> mAdMap = new HashMap<>();
     private String mDeviceId = "";
 
     private List<AdvertData> mAdDataList = new ArrayList<>();
@@ -757,7 +755,6 @@ public class UpgradeService extends Service {
                 if(tokenDataAdHttpResult.getStatus()==0 && tokenDataAdHttpResult.getData().getToken()!=null) {
                     mToken = tokenDataAdHttpResult.getData().getToken();
                     heardBeat(mToken);
-                    getAdList(mToken);
                     getAdvertInfo(mToken);
                 }else{
                     mHandler.removeMessages(GETTOKEN_CMD);
@@ -1049,15 +1046,15 @@ public class UpgradeService extends Service {
         },null);
     }
     private void updateAdList(AdListHttpResult result){
-            mAdMap.clear();
+            mAdDataList.clear();
             downloadList.clear();
             mAdverPositions.clear();
-            //List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
             List<AdvertScheduleVo> advertSchedules = result.getData().getAdvertSchedules();
             //mTemplateId = result.getData().getTemplate().getTemplate().getId();
             if(advertSchedules==null || advertSchedules.size()<=0) return;
             mAdDataList.clear();
             for(int i=0;i<advertSchedules.size();i++){
+                Map<Long,List<PlayingAdvert>> mAdMap = new HashMap<>();
                 AdvertScheduleVo advertScheduleVo = advertSchedules.get(i);
                 AdvertSchedule advertSchedule = advertScheduleVo.getAdvertSchedule();
                 RingLog.d("schedule: startTime=" + advertSchedule.getStartTime() + "endTime=" + advertSchedule.getEndTime() );
@@ -1067,16 +1064,17 @@ public class UpgradeService extends Service {
                    Template template = templateVo.getTemplate();
                    List<TemplateReginVo> regionList = templateVo.getRegionList();
                    for(int k=0;k<regionList.size();k++){
+                        List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
                         TemplateReginVo regionVo = regionList.get(k);
                         TemplateRegion region = regionVo.getTemplateRegion();
-                        AdvertVo packageAdverts = regionVo.getPackageAdverts();
-                        RingLog.d("region:id=" + region.getId() + "width="+region.getWidth() + "height="+region.getHeight() + "location="+region.getRate() + region.getLocation());
-                        List<AdvertFile> fileList = packageAdverts.getFileList();
-                        for(int l=0;l<fileList.size();l++) {
-                            AdvertFile advertFile = fileList.get(l);
+                        List<AdvertVo> packageAdverts = regionVo.getPackageAdverts();
+                        RingLog.d("region:id=" + region.getId() + "width="+region.getWidth() + "height="+region.getHeight() + "rate="+region.getRate() + "location="+region.getLocation());
+                        for(int l=0;l<packageAdverts.size();l++) {
+                            AdvertVo advertVo = packageAdverts.get(l);
+                            AdvertFile advertFile = advertVo.getFileList();
                             RingLog.d("id:"+advertFile.getAdvertid() + "path" + advertFile.getFilePath() + "md5:" + advertFile.getFileMd5() );
                             DownloadInfo downloadInfo = new DownloadInfo();
-                            downloadInfo.setId(advertFile.getId());
+                            downloadInfo.setId(advertFile.getAdvertid());
                             String encurl = advertFile.getRemark1();
                             if (encurl != null && !encurl.isEmpty()) {
                                 downloadInfo.setUrl(encurl);
@@ -1110,10 +1108,15 @@ public class UpgradeService extends Service {
                             item.setDuration(advertFile.getVideoDuration());
                             */
                             item.setvType(advertFile.getVtype());
-                            //adurls.add(item);
+                            adurls.add(item);
                         }
+                        mAdMap.put(region.getId(),adurls);
                    }
                 }
+                AdvertData advertData = new AdvertData();
+                advertData.setAdvertSchedule(advertSchedule);
+                advertData.setAdvertMap(mAdMap);
+                mAdDataList.add(advertData);
             }
             /*
             for(int ii=0;ii < regionList.size();ii++) {
@@ -1192,7 +1195,7 @@ public class UpgradeService extends Service {
 
             }
             */
-            /*
+
             if(downloadList.size()>0){
                 downloadAdList();
                 updateScheduleTimesCache(result);
@@ -1204,7 +1207,7 @@ public class UpgradeService extends Service {
                     ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
                 }
             }
-            */
+
     }
 
     private void updatePlayListFilePath(String path,String md5){

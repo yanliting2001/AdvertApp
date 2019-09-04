@@ -1,10 +1,12 @@
 package com.grandartisans.advert.model.entity.res;
 
+import com.grandartisans.advert.model.entity.PlayingAdvert;
 import java.util.List;
+import java.util.Map;
 
 public class AdvertData {
-    AdvertSchedule advertSchedule;
-    private List<AdvertFile> fileList;
+    private AdvertSchedule advertSchedule;
+    private Map<Long,List<PlayingAdvert>> advertMap;
 
     public AdvertSchedule getAdvertSchedule() {
         return advertSchedule;
@@ -14,11 +16,11 @@ public class AdvertData {
         this.advertSchedule = advertSchedule;
     }
 
-    public List<AdvertFile> getFileList() {
-        return fileList;
+    public Map<Long, List<PlayingAdvert>> getAdvertMap() {
+        return advertMap;
     }
 
-    public void setFileList(List<AdvertFile> fileList) {
-        this.fileList = fileList;
+    public void setAdvertMap(Map<Long, List<PlayingAdvert>> advertMap) {
+        this.advertMap = advertMap;
     }
 }

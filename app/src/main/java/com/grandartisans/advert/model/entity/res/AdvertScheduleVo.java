@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AdvertScheduleVo {
-    AdvertSchedule advertSchedule;
+    private AdvertSchedule advertSchedule;
     private List<TemplateVo> templateVo = new ArrayList<>();
 
     public AdvertSchedule getAdvertSchedule() {

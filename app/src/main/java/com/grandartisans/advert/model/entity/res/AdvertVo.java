@@ -28,21 +28,13 @@ import java.util.List;
  */
 @SuppressWarnings("serial")
 public class AdvertVo {
-	private List<AdvertFile> fileList;
+	private AdvertFile fileList;
 
-	/**
-	 * @return the fileList
-	 */
-	public List<AdvertFile> getFileList() {
+	public AdvertFile getFileList() {
 		return fileList;
 	}
 
-	/**
-	 * @param fileList the fileList to set
-	 */
-	public void setFileList(List<AdvertFile> fileList) {
+	public void setFileList(AdvertFile fileList) {
 		this.fileList = fileList;
 	}
-
-
 }

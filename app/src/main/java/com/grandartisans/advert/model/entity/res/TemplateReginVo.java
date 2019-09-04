@@ -1,8 +1,10 @@
 package com.grandartisans.advert.model.entity.res;
 
+import java.util.List;
+
 public class TemplateReginVo {
     TemplateRegion templateRegion;
-    AdvertVo packageAdverts;
+    private List<AdvertVo> packageAdverts;
 
     public TemplateRegion getTemplateRegion() {
         return templateRegion;
@@ -12,11 +14,11 @@ public class TemplateReginVo {
         this.templateRegion = templateRegion;
     }
 
-    public AdvertVo getPackageAdverts() {
+    public List<AdvertVo> getPackageAdverts() {
         return packageAdverts;
     }
 
-    public void setPackageAdverts(AdvertVo packageAdverts) {
+    public void setPackageAdverts(List<AdvertVo> packageAdverts) {
         this.packageAdverts = packageAdverts;
     }
 }
