@@ -140,7 +140,7 @@ public class UpgradeService extends Service {
     private int mDownloadStatus = DownloadInfo.STATUS_COMPLETE;
 
     public static String  mToken ;
-    private List<AdvertPosition> mAdverPositions = new ArrayList<AdvertPosition>();
+    private List<PositionVer> mAdverPositions = new ArrayList<PositionVer>();
 
     private boolean isPowerAlarmSet = false;
 
@@ -176,7 +176,7 @@ public class UpgradeService extends Service {
 
     private AdPlayListManager mPlayListManager = null;
     private PrjSettingsManager prjmanager = null;
-    private Long mTemplateId ;
+    private Long mTemplateId =0L;
 
     private LogcatHelper logHelper =null;
 
@@ -559,7 +559,7 @@ public class UpgradeService extends Service {
                     showTimeInfo();
                     break;
                 case START_REPORT_SCHEDULEVER_CMD:
-                    ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
+                    ReportScheduleVer(mTemplateId, mAdverPositions);
                     break;
                 case START_GET_INFO_CMD:
                     getAdvertInfo(mToken);
@@ -825,7 +825,6 @@ public class UpgradeService extends Service {
                             for (int j = 0; j < data.size(); j++) {
                                 HeartBeatData dataItem = data.get(j);
                                 if (dataItem.getEventID().equals("1001")) { /*广告版本更新检查*/
-                                    //List<PositionVer> list = (List<PositionVer>)dataItem.getEventData();
                                     List<PositionVer> list = new ArrayList<>();
                                     if(dataItem.getEventData().getClass().equals(list.getClass())){
                                         String eventDataString = dataItem.getEventData().toString();
@@ -838,16 +837,17 @@ public class UpgradeService extends Service {
                                         for (int i = 0; i < list.size(); i++) {
                                             PositionVer item = (PositionVer)list.get(i);
                                             RingLog.d("send HeartBeat  positionID " + item.getAdvertPositionId() + "version = " + item.getVersion() );
+                                            RingLog.d("HeartBeat save position version =" +  AdvertVersion.getAdVersion(item.getAdvertPositionId()));
                                             if (AdvertVersion.getAdVersion(item.getAdvertPositionId()) > 0) {
                                                 if (item.getVersion() != AdvertVersion.getAdVersion(item.getAdvertPositionId())) {
                                                     if (!isDownloadingAdFiles()){
-                                                        getAdList(token);
+                                                        getAdList(token,list);
                                                         break;
                                                     }
                                                 }
                                             } else {
                                                 if (!isDownloadingAdFiles()){
-                                                    getAdList(token);
+                                                    getAdList(token,list);
                                                     break;
                                                 }
                                             }
@@ -1045,10 +1045,13 @@ public class UpgradeService extends Service {
             }
         },null);
     }
-    private void updateAdList(AdListHttpResult result){
+    private void updateAdList(AdListHttpResult result,List<PositionVer> versionlist){
             mAdDataList.clear();
             downloadList.clear();
             mAdverPositions.clear();
+            for(int ii=0;ii< versionlist.size();ii++) {
+                mAdverPositions.add(versionlist.get(ii));
+            }
             List<AdvertScheduleVo> advertSchedules = result.getData().getAdvertSchedules();
             //mTemplateId = result.getData().getTemplate().getTemplate().getId();
             if(advertSchedules==null || advertSchedules.size()<=0) return;
@@ -1105,8 +1108,8 @@ public class UpgradeService extends Service {
                             item.setEndDate(dateSchedueVo.getDateSchedule().getEndDate());
                             item.setStartTime(timeScheduleVo.getTimeSchedule().getStartTime() + ":00");
                             item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime() + ":00");
-                            item.setDuration(advertFile.getVideoDuration());
                             */
+                            item.setDuration(advertFile.getVideoDuration());
                             item.setvType(advertFile.getVtype());
                             adurls.add(item);
                         }
@@ -1116,6 +1119,7 @@ public class UpgradeService extends Service {
                 AdvertData advertData = new AdvertData();
                 advertData.setAdvertSchedule(advertSchedule);
                 advertData.setAdvertMap(mAdMap);
+                advertData.setTemplateVo(templateList);
                 mAdDataList.add(advertData);
             }
             /*
@@ -1198,39 +1202,43 @@ public class UpgradeService extends Service {
 
             if(downloadList.size()>0){
                 downloadAdList();
-                updateScheduleTimesCache(result);
+                //updateScheduleTimesCache(result);
             }else{
-                updateScheduleTimesCache(result);
-
-                mPlayListManager.updatePlayList(mAdMap);
-                if(mAdverPositions!=null && mAdverPositions.size()>0) {
-                    ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
+                //updateScheduleTimesCache(result);
+                mPlayListManager.updatePlayList(mAdDataList);
+                if(versionlist!=null && versionlist.size()>0) {
+                    ReportScheduleVer(mTemplateId, versionlist);
                 }
             }
 
     }
 
     private void updatePlayListFilePath(String path,String md5){
-        for (Map.Entry<Long, List<PlayingAdvert>> entry : mAdMap.entrySet()) {
-            List<PlayingAdvert> adurls = entry.getValue();
-            int size = adurls.size();
-            for(int i=0;i<size;i++){
-                PlayingAdvert item = adurls.get(i);
-                RingLog.d("updatePlayListFilePath path = " + path + "item md5=" + item.getMd5());
-                if(md5.equals(item.getMd5())){
-                    if(path.contains(".zip")){
-                        String destPath = FileUtil.getExternalCacheDir(getApplicationContext());
-                        File file = new File(path);
-                        try {
-                            ZipUtils.upZipFile(file,destPath);
-                        } catch (IOException e) {
-                            e.printStackTrace();
+        int count = mAdDataList.size();
+        for(int i=0;i<count;i++){
+            AdvertData advertData = mAdDataList.get(i);
+            Map<Long, List<PlayingAdvert>> adMap = advertData.getAdvertMap();
+            for (Map.Entry<Long, List<PlayingAdvert>> entry : adMap.entrySet()) {
+                List<PlayingAdvert> adurls = entry.getValue();
+                int size = adurls.size();
+                for(int j=0;j<size;j++) {
+                    PlayingAdvert item = adurls.get(j);
+                    RingLog.d("updatePlayListFilePath path = " + path + "item md5=" + item.getMd5());
+                    if (md5.equals(item.getMd5())) {
+                        if (path.contains(".zip")) {
+                            String destPath = FileUtil.getExternalCacheDir(getApplicationContext());
+                            File file = new File(path);
+                            try {
+                                ZipUtils.upZipFile(file, destPath);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            int index = path.indexOf(".zip");
+                            String subpath = path.substring(0, index);
+                            item.setPath("http://127.0.0.1:8769/" + subpath + "/playlist.m3u8");
+                        } else {
+                            item.setPath(path);
                         }
-                        int index = path.indexOf(".zip");
-                        String subpath = path.substring(0,index);
-                        item.setPath("http://127.0.0.1:8769/"+subpath+"/playlist.m3u8");
-                    }else {
-                        item.setPath(path);
                     }
                 }
             }
@@ -1241,7 +1249,7 @@ public class UpgradeService extends Service {
 
 
 
-    private void getAdList(String token) {
+    private void getAdList(String token,final List<PositionVer> versionList) {
         AdvertModel mIModel = new AdvertModel();
         AdvertParameter parameter = new AdvertParameter();
         if(mDeviceId.isEmpty()) {
@@ -1257,7 +1265,7 @@ public class UpgradeService extends Service {
                 //RingLog.d("getAdList ok result = " + result );
                 downloadList.clear();
                 if(result.getStatus() ==0 ) {
-                    updateAdList(result);
+                    updateAdList(result,versionList);
                 }
             }
 
@@ -1329,7 +1337,7 @@ public class UpgradeService extends Service {
         }, null);
     }
 
-    private void ReportScheduleVer(long templateid,long positionid,int adversion)
+    private void ReportScheduleVer(long templateid,final List<PositionVer> versionlist)
     {
         EventParameter parameter = new EventParameter();
         if (mDeviceId.isEmpty()) {
@@ -1346,8 +1354,8 @@ public class UpgradeService extends Service {
         parameter.setMac(CommonUtil.getEthernetMac());
         ReportSchedueVerParameter info = new ReportSchedueVerParameter();
         info.setTemplateid(templateid);
-        info.setAdPositionID(positionid);
-        info.setVersion(adversion);
+        info.setAdPositionID(versionlist.get(0).getAdvertPositionId());
+        info.setVersion(versionlist.get(0).getVersion());
 
         parameter.setEventData(info);
         parameter.setTimestamp(System.currentTimeMillis());
@@ -1357,7 +1365,7 @@ public class UpgradeService extends Service {
             @Override
             public void onResult(ReportInfoResult result) {
                 RingLog.d("reportScheduleVersion  ok status = " + result.getStatus());
-                mPlayListManager.saveAdvertVersion(mAdverPositions);
+                mPlayListManager.saveAdvertVersion(versionlist);
             }
 
             @Override
@@ -1409,10 +1417,10 @@ public class UpgradeService extends Service {
             }
         }
         if(finished) {
-            mPlayListManager.updatePlayList(mAdMap);
+            mPlayListManager.updatePlayList(mAdDataList);
             //mPlayListManager.saveAdvertVersion(mAdverPositions);
             if(mAdverPositions!=null && mAdverPositions.size()>0) {
-                ReportScheduleVer(mTemplateId, mAdverPositions.get(0).getId(), mAdverPositions.get(0).getVersion());
+                ReportScheduleVer(mTemplateId,mAdverPositions);
             }
         }
     }

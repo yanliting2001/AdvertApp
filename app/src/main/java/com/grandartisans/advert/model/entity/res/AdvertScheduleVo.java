@@ -5,7 +5,7 @@ import java.util.List;
 
 public class AdvertScheduleVo {
     private AdvertSchedule advertSchedule;
-    private List<TemplateVo> templateVo = new ArrayList<>();
+    private List<TemplateVo> templateVo ;
 
     public AdvertSchedule getAdvertSchedule() {
         return advertSchedule;

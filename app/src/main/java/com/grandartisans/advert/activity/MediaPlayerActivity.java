@@ -46,6 +46,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.grandartisans.advert.app.AdvertApp;
 import com.grandartisans.advert.common.Common;
 import com.grandartisans.advert.common.ScheduleTimesCache;
 import com.grandartisans.advert.dbutils.PlayRecord;
@@ -65,6 +66,7 @@ import com.grandartisans.advert.model.entity.res.AdvertInfoData;
 import com.grandartisans.advert.model.entity.res.AdvertWeatherData;
 import com.grandartisans.advert.model.entity.res.PowerOnOffData;
 import com.grandartisans.advert.model.entity.res.ReportInfoResult;
+import com.grandartisans.advert.model.entity.res.TemplateReginVo;
 import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TerminalAdvertPackageVo;
 import com.grandartisans.advert.server.M3u8Server;
@@ -364,6 +366,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	};
 
 	private void onPlayerCmd(String cmd,String url){
+		Log.i(TAG,"onPlayerCmd cmd = " + cmd + "player state = " + getPlayerState());
 		if(cmd.equals("reset")){
 			if(getPlayerState()==PLAYER_STATE_PLAYING){
 				PlayerStop();
@@ -450,6 +453,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_FULLSCREEN;
         decorView.setSystemUiVisibility(uiOptions);
+		AdvertApp app = (AdvertApp) getApplication();
+		app.initApps();
+
 		setCurrentTime();
 		keepScreenWake();
 
@@ -457,6 +463,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 		mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
 		mPlayListManager.registerListener(mAdListEventListener);
+		mPlayListManager.init(this);
 
 		handler = new Handler();
 		mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*10);
@@ -479,8 +486,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             startService(intentService);
         }
 		initEventBus();//注册事件接收
-
-		mPlayListManager.init(this);
 
 		encApi = new Api();
 
@@ -510,8 +515,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initView(){
-        // 判断有无排期模板缓存 有则进行排板 无则使用默认模板
-        TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
         relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
 		surface = (MySurfaceView) findViewById(R.id.surface);
 		mImageMain =(ImageView)findViewById(R.id.image_main);
@@ -524,13 +527,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		mCameraView = (SrsCameraView) findViewById(R.id.glsurfaceview_camera);
 		mCameraView.setVisibility(View.GONE);
 
-        if (tapvo != null) {
-            RingLog.d(TAG, "the schedule times is not none, let init it");
-            mTerminalAdvertPackageVo = tapvo;
-            initAdView();
-        }else {
-            RingLog.d(TAG, "the schedule times is none, let use default view");
-        }
+
+		initAdView();
+
 		marqueeTextView = (MarqueeTextView) findViewById(R.id.tv_scroll);
 		marqueeTextView.setVisibility(View.GONE);
 		linearLayoutText = (LinearLayout) findViewById(R.id.ll_info);
@@ -616,21 +615,24 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initAdFiles(){
+        Log.i(TAG,"initAdFiles ");
 		onPlayerCmd("reset","");
         int childCount = relativeLayout.getChildCount();
         for (int i = 0; i < childCount; i++) {
             if (relativeLayout.getChildAt(i) instanceof ImageView) {
                 ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
+
 				showImageWithIndex(imageView);
             } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
                 MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
+                Log.i(TAG,"initAdFiles surfaceView mMainPositionId =  " + mMainPositionId);
                 initPlayer(mMainPositionId);
             }
         }
     }
 
 	private void initPlayer(Long posid){
-        PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid);
+        PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid,true);
         if(item!=null) {
 			String url = item.getPath();
 			Log.i(TAG,"player advertFile vType = " + item.getvType() + "url = " + item.getPath());
@@ -638,6 +640,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         	if(item.getvType()==2) { //视频广告
 				//surface.setVisibility(View.VISIBLE);
 				mImageMain.setVisibility(View.GONE);
+                onPlayerCmd("reset","");
 				if (url != null && url.length() > 0) {
 					onPlayerCmd("source",url);
 					int duration = item.getDuration();
@@ -664,7 +667,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			savePlayRecord(posid);
 		}
 		if(!isPowerOff) {
-			onPlayerCmd("reset","");
 			initPlayer(posid);
 		}else{
 			setScreenOff(false);
@@ -793,10 +795,21 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		if(keyCode == KeyEvent.KEYCODE_MENU) {
 			menuKeyPressedCount +=1;
 			startSysSetting(MediaPlayerActivity.this);
-		}else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
+		}else if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
+			startMyApp(MediaPlayerActivity.this,"app_browser");
+		}
+		else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
 			return true;
 		}
 		return super.onKeyDown(keyCode, event);
+	}
+
+	private void startMyApp(Context context, String mode) {
+		Intent it = new Intent();
+		it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+		it.setClass(context, MyAppActivity.class);
+		it.putExtra("appmode", mode);
+		context.startActivity(it);
 	}
 
 	private void initEventBus() {
@@ -1265,16 +1278,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		@Override
 		public void onAdListUpdate() {
 			removeImageView();
-			TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
-			if (tapvo != null) {
-				RingLog.d(TAG, "the schedule times is not none, let init it");
-				mTerminalAdvertPackageVo = tapvo;
-				initAdView();
-				initAdFiles();
-				mPlayListManager.setPlayListUpdate("1");
-				mHandler.removeMessages(START_CAMERACHECK_CMD);
-				mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD, 30 * 1000);
-			}
+			initAdView();
+			initAdFiles();
+			mPlayListManager.setPlayListUpdate("1");
+			mHandler.removeMessages(START_CAMERACHECK_CMD);
+			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD, 30 * 1000);
 		}
 		@Override
 		public void onInfoUpdate(AdvertInfoData data){
@@ -1287,6 +1295,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		@Override
 		public void onRecoderStart(){
 			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD,  1000);
+		}
+		@Override
+		public void onTemplateUpdate(){
+            onPlayerCmd("stop","");
+			removeImageView();
+			initAdView();
+			initAdFiles();
 		}
 	};
 
@@ -1525,33 +1540,29 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}
 	}
 
-    private TerminalAdvertPackageVo getScheduleTimesCache() {
-        return ScheduleTimesCache.get();
-    }
     private void initAdView() {
-		/*
-        List<TemplateRegion> regionList = mTerminalAdvertPackageVo.getTemplate().getRegionList();
-        Map<String, Long> relationMap = mTerminalAdvertPackageVo.getRelationMap();
-        if(relationMap.isEmpty()) return ;
+        List<TemplateReginVo> regionList = mPlayListManager.getTemplateList();
         boolean onlyMainPos = true;
-        if(regionList.size()>1){
-        	onlyMainPos = false;
-		}
-		RingLog.i("Use schedule times regionList size = " + regionList.size() + "onlyMainPos  = " + onlyMainPos);
         if(regionList!=null) {
+			if(regionList.size()>1){
+				onlyMainPos = false;
+			}
+			RingLog.i("Use schedule times regionList size = " + regionList.size() + "onlyMainPos  = " + onlyMainPos);
             for(int i=0;i<regionList.size();i++){
-                TemplateRegion region = regionList.get(i);
-                String regLocation = region.getLocation();
+				TemplateReginVo region = regionList.get(i);
+                String regLocation = region.getTemplateRegion().getLocation();
                 String[] regLocations = regLocation.split(",");
-                String videoType = region.getVideoType();
-                int regWidth = region.getWidth();
-                int regHeight = region.getHeight();
+                String videoType = region.getTemplateRegion().getVideoType();
+                int regWidth = region.getTemplateRegion().getWidth();
+                int regHeight = region.getTemplateRegion().getHeight();
                 int marginLeft = Integer.valueOf(regLocations[0]);
                 int marginTop = Integer.valueOf(regLocations[1]);
                 Long adType = Long.valueOf(videoType);
-                Long adPosId = relationMap.get(region.getIdent());
+                Long adPosId = region.getTemplateRegion().getId();
 				if (onlyMainPos){
 					mMainPositionId = adPosId;
+					set_view_layout(adType, regWidth, regHeight, marginLeft,
+							marginTop, adPosId);
 				}else {
 					set_view_layout(adType, regWidth, regHeight, marginLeft,
 							marginTop, adPosId);
@@ -1561,7 +1572,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				}
             }
         }
-        */
     }
 
     private void set_view_layout(long viewType, int width, int height, int left, int top,Long adposid) {
@@ -1575,7 +1585,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             imageView.setScaleType(ImageView.ScaleType.FIT_XY);
             imageView.setTag(R.id.image_key,adposid);
             relativeLayout.addView(imageView);
-        } else if (viewType == 2) { // 视频控件
+        } else if (viewType == 2 || viewType ==3) { // 视频控件
 			RingLog.d(TAG, "set surface view");
 			surface.setLayoutParams(layoutParams);
 			surface.requestLayout();
@@ -1611,7 +1621,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
     private void showImageWithIndex(ImageView imageView) {
 		Long posid = (Long)imageView.getTag(R.id.image_key);
-		PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid);
+		PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid,false);
 		if(item!=null) {
 			String path = item.getPath();
 			boolean isEncrypt = item.isEncrypt();
@@ -1629,23 +1639,27 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				Bitmap bm = BitmapFactory.decodeFile(path);
 				if(bm!=null) imageView.setImageBitmap(bm);
 			}
+			Message msg = new Message();
+			msg.what = UPDATE_IMAGE_AD_CMD;
+			msg.obj = imageView;
+			mHandler.sendMessageDelayed(msg,item.getDuration()*1000);
 		}
-		Message msg = new Message();
-		msg.what = UPDATE_IMAGE_AD_CMD;
-		msg.obj = imageView;
-		mHandler.sendMessageDelayed(msg,item.getDuration()*1000);
     }
 
 	private void removeImageView() {
 		int childCount = relativeLayout.getChildCount();
 		if (childCount <= 1)
 			return;
-		for (int i = 0; i < childCount; i++) {
+		Log.i(TAG,"removeImageView childCount = " + childCount);
+		for (int i = childCount-1; i >=0 ; i--) {
 			if (relativeLayout.getChildAt(i) instanceof ImageView) {
+				Log.i(TAG,"removeImageView i = " + i);
 				ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
 				relativeLayout.removeView(imageView);
+				mHandler.removeMessages(UPDATE_IMAGE_AD_CMD);
 			}
 		}
+		//relativeLayout.requestLayout();
 	}
 
     private void setAdInfoScroll(Boolean visibile ,AdvertInfoData data) {

@@ -7,6 +7,7 @@ import java.util.Map;
 public class AdvertData {
     private AdvertSchedule advertSchedule;
     private Map<Long,List<PlayingAdvert>> advertMap;
+    private List<TemplateVo> templateVo ;
 
     public AdvertSchedule getAdvertSchedule() {
         return advertSchedule;
@@ -22,5 +23,13 @@ public class AdvertData {
 
     public void setAdvertMap(Map<Long, List<PlayingAdvert>> advertMap) {
         this.advertMap = advertMap;
+    }
+
+    public List<TemplateVo> getTemplateVo() {
+        return templateVo;
+    }
+
+    public void setTemplateVo(List<TemplateVo> templateVo) {
+        this.templateVo = templateVo;
     }
 }

@@ -8,9 +8,14 @@ import com.google.gson.reflect.TypeToken;
 import com.grandartisans.advert.app.AdvertApp;
 import com.grandartisans.advert.interfaces.AdListEventListener;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
+import com.grandartisans.advert.model.entity.res.AdvertData;
 import com.grandartisans.advert.model.entity.res.AdvertInfoData;
 import com.grandartisans.advert.model.entity.res.AdvertPosition;
+import com.grandartisans.advert.model.entity.res.AdvertSchedule;
 import com.grandartisans.advert.model.entity.res.AdvertWeatherData;
+import com.grandartisans.advert.model.entity.res.PositionVer;
+import com.grandartisans.advert.model.entity.res.TemplateReginVo;
+import com.grandartisans.advert.model.entity.res.TemplateVo;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.util.FileUtil;
 
@@ -25,7 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class AdPlayListManager {
     private final String TAG = "AdPlayListManager";
     private volatile static AdPlayListManager mPlayListInstance = null;
-    private Map<Long, List<PlayingAdvert>> mAdvertMap = new HashMap<>();
+    private List<AdvertData> mAdvertList = null;
     private Map<Long, Integer> mAdvertIndex = new HashMap<>();
     private List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
     private List<PlayingAdvert> adurls_local = new ArrayList<PlayingAdvert>();
@@ -33,7 +38,22 @@ public class AdPlayListManager {
     private AdvertInfoData mInfoData = null;
     private AdvertWeatherData mWeatherData = null;
     ReentrantLock lock = new ReentrantLock();
+    private int mScheduleIndex = -1;
+    private int mTemplateIndex = 0;
     private AdPlayListManager (Context context) {}
+    private void initPlayerIndex(){
+        mAdvertIndex.put(0L, 0);
+        if(mAdvertList!=null) {
+            for(int i=0;i<mAdvertList.size();i++) {
+                AdvertData advertData = mAdvertList.get(i);
+                Map<Long, List<PlayingAdvert>> advertMap = advertData.getAdvertMap();
+                for (Map.Entry<Long, List<PlayingAdvert>> entry : advertMap.entrySet()) {
+                    Long id = entry.getKey();
+                    mAdvertIndex.put(id, 0);
+                }
+            }
+        }
+    }
     public static AdPlayListManager getInstance(Context context) {
         if (mPlayListInstance == null) {
             synchronized (AdPlayListManager.class) {
@@ -46,14 +66,14 @@ public class AdPlayListManager {
     }
     public boolean init(Context context){
         boolean res = false;
-        String jsondata = DevRing.cacheManager().diskCache("advertMap").getString("playMap");
+        String jsondata = DevRing.cacheManager().diskCache("advertList").getString("playList");
         Gson gson = new Gson();
         if (jsondata!=null) {
-            mAdvertMap = gson.fromJson(jsondata, new TypeToken<Map<Long,List<PlayingAdvert>>>() {}.getType());
-            for (Map.Entry<Long, List<PlayingAdvert>> entry : mAdvertMap.entrySet()) {
-                Long id = entry.getKey();
-                mAdvertIndex.put(id,0);
-            }
+            mAdvertList = new ArrayList<>();
+            mAdvertList = gson.fromJson(jsondata, new TypeToken<List<AdvertData>>() {}.getType());
+            initPlayerIndex();
+        }else {
+            mAdvertList = null;
         }
         String destPath = FileUtil.getExternalCacheDir(context);
         File file = new File(destPath + "/default");
@@ -75,64 +95,121 @@ public class AdPlayListManager {
     public void  registerListener(AdListEventListener listener){
         if(listener!=null) mAdListEventListener = listener;
     }
-    public boolean updatePlayList( Map<Long, List<PlayingAdvert>> adMap){
+    public boolean updatePlayList( List<AdvertData> adList){
         boolean res = true;
         lock.lock();
-        mAdvertMap = adMap;
-        /*
-        adurls.clear();
-        for(int i=0;i<urls.size();i++){
-            adurls.add(urls.get(i));
-        }
-        */
+        mAdvertList = adList;
         lock.unlock();
         return res;
     }
 
-    public  PlayingAdvert  getValidPlayUrl(Long positionId) {
+    public List<TemplateReginVo> getTemplateList(){
+        if(mAdvertList!=null) {
+            for(int i=0;i<mAdvertList.size();i++) {
+                AdvertData advertData = mAdvertList.get(i);
+                AdvertSchedule advertSchedule = advertData.getAdvertSchedule();
+                if(advertSchedule.getStartTime()!=null && advertSchedule.getEndTime()!=null){
+                    if (CommonUtil.compareDateState(advertSchedule.getStartTime(), advertSchedule.getEndTime())) {
+                        if(mScheduleIndex!=i) {
+                            mScheduleIndex = i;
+                            mTemplateIndex=0;
+                        }
+                        initPlayerIndex();
+                        Log.i("getTemplateList","mScheduleIndex = " + mScheduleIndex + "mTemplateIndex = " + mTemplateIndex);
+                        return advertData.getTemplateVo().get(mTemplateIndex).getRegionList();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    public boolean needChangeTemplate(){
+        if(mAdvertList!=null) {
+            if(mScheduleIndex!=-1 && mScheduleIndex < mAdvertList.size()){
+                AdvertData advertData = mAdvertList.get(mScheduleIndex);
+                List<TemplateVo> templateVo = advertData.getTemplateVo();
+                if(templateVo.size()>1){
+                    Log.i(TAG,"need change template mTemplateIndex = "  + mTemplateIndex);
+                    mTemplateIndex+=1;
+                    Log.i(TAG,"need change template mTemplateIndex = "  + mTemplateIndex + "template list size = " + templateVo.size());
+                    mTemplateIndex = mTemplateIndex%templateVo.size();
+                    Log.i(TAG,"need change template mTemplateIndex = "  + mTemplateIndex);
+                    return true;
+                }else{
+                    return false;
+                }
+                //advertData.getTemplateVo().get(0).getRegionList();
+            }
+        }
+        return false;
+    }
+    public  PlayingAdvert  getValidPlayUrl(Long positionId,boolean checkTemplate) {
         String url=null;
+        boolean urlvalid = false;
         lock.lock();
         int playindex = 0;
-
         PlayingAdvert playAdvertItem = null;
-        for (Map.Entry<Long, List<PlayingAdvert>> entry : mAdvertMap.entrySet()) {
-            Long id = entry.getKey();
-            Log.i(TAG,"getValidPlayUrl mAdvertMap id = " + id);
-        }
-        adurls = mAdvertMap.get(positionId);
-        if(mAdvertIndex.containsKey(positionId))
-            playindex = mAdvertIndex.get(positionId);
-        Log.i(TAG,"getValidPlayUrl  positionId = " + positionId + "playindex = " + playindex);
-        boolean urlvalid = false;
-        if(adurls!=null && adurls.size()>0) {
-            //Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
-            //Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
-            playAdvertItem  = findPlayUrl(positionId,playindex);
-            if(playAdvertItem!=null) {
-                urlvalid = true;
-                int index = playindex % adurls.size();
-                //url = adurls.get(index).getPath();
-                AdvertApp.setPlayingAdvert(playAdvertItem);
-                //PlayRecord record = new PlayRecord();
-            }else{
-                urlvalid = false;
+        if(mAdvertList!=null && mAdvertList.size()>0 && mScheduleIndex>=0) {
+            AdvertData advertData = mAdvertList.get(mScheduleIndex);
+            Map<Long,List<PlayingAdvert>> advertMap = advertData.getAdvertMap();
+            /*
+            for (Map.Entry<Long, List<PlayingAdvert>> entry : advertMap.entrySet()) {
+                Long id = entry.getKey();
+                Log.i(TAG, "getValidPlayUrl mAdvertMap id = " + id);
+            }
+            */
+            adurls = advertMap.get(positionId);
+            if (mAdvertIndex.containsKey(positionId))
+                playindex = mAdvertIndex.get(positionId);
+            if(checkTemplate) {
+                if (playindex >= adurls.size()) {
+                    if (needChangeTemplate()) {
+                        if (mAdListEventListener != null) mAdListEventListener.onTemplateUpdate();
+                        return null;
+                    }
+                }
+            }
+            Log.i(TAG, "getValidPlayUrl  positionId = " + positionId + "playindex = " + playindex);
+            if (adurls != null && adurls.size() > 0) {
+                //Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
+                //Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);
+                playAdvertItem = findPlayUrl(positionId, playindex);
+                if (playAdvertItem != null) {
+                    urlvalid = true;
+                    int index = playindex % adurls.size();
+                    //url = adurls.get(index).getPath();
+                    AdvertApp.setPlayingAdvert(playAdvertItem);
+                    //PlayRecord record = new PlayRecord();
+                } else {
+                    urlvalid = false;
+                }
             }
 
+            lock.unlock();
+        }else {
+            if (urlvalid == false && adurls_local.size() > 0) {
+                playindex = mAdvertIndex.get(positionId);
+                Log.i(TAG, "getValidPlayUrl  positionId = " + positionId + "playindex = " + playindex);
+                if(playindex>=adurls_local.size()){
+                    if (checkTemplate) {
+                        mAdvertIndex.put(positionId, 0);
+                        if (mAdListEventListener != null) mAdListEventListener.onTemplateUpdate();
+                        return null;
+                    }
+                }
+                int index = playindex % adurls_local.size();
+                url = adurls_local.get(index).getPath();
+                playAdvertItem = new PlayingAdvert();
+                Long id = Long.valueOf(0);
+                playAdvertItem.setAdPositionID(id);
+                playAdvertItem.setAdvertid(id);
+                playAdvertItem.setPath(url);
+                playAdvertItem.setvType(2);
+                playAdvertItem.setDuration(15);
+                AdvertApp.setPlayingAdvert(playAdvertItem);
+                mAdvertIndex.put(positionId, ++playindex);
+            }
         }
-        if(urlvalid == false && adurls_local.size()>0) {
-            int index = playindex % adurls_local.size();
-            url = adurls_local.get(index).getPath();
-            playAdvertItem = new PlayingAdvert();
-            Long id = Long.valueOf(0);
-            playAdvertItem.setAdPositionID(id);
-            playAdvertItem.setAdvertid(id);
-            playAdvertItem.setPath(url);
-            playAdvertItem.setvType(2);
-            playAdvertItem.setDuration(15);
-            AdvertApp.setPlayingAdvert(playAdvertItem);
-            mAdvertIndex.put(positionId,++playindex);
-        }
-        lock.unlock();
         return playAdvertItem;
     }
     private PlayingAdvert findPlayUrl(Long positionId,int playindex){
@@ -171,38 +248,44 @@ public class AdPlayListManager {
         }else return null;
     }
 
-    public void saveAdvertVersion(List<AdvertPosition> advertPositions) {
-        Gson gson = new Gson();
-        String str = gson.toJson(mAdvertMap);
-        //Log.i(TAG, "save advertMap = " + str);
-        DevRing.cacheManager().diskCache("advertMap").put("playMap", str);
-        for(int i=0;i<advertPositions.size();i++) {
-            AdvertPosition advertPosition = advertPositions.get(i);
-            AdvertVersion.setAdVersion(advertPosition.getId().intValue(), advertPosition.getVersion());
-        }
-        if(mAdListEventListener!=null) {
-            mAdListEventListener.onAdListUpdate();
+    public void saveAdvertVersion(List<PositionVer> versionList) {
+        if(mAdvertList!=null) {
+            Gson gson = new Gson();
+            String str = gson.toJson(mAdvertList);
+            //Log.i(TAG, "save advertMap = " + str);
+            DevRing.cacheManager().diskCache("advertList").put("playList", str);
+            for (int i = 0; i < versionList.size(); i++) {
+                PositionVer advertPosition = versionList.get(i);
+                AdvertVersion.setAdVersion(advertPosition.getAdvertPositionId().intValue(), advertPosition.getVersion());
+            }
+            if (mAdListEventListener != null) {
+                mAdListEventListener.onAdListUpdate();
+            }
         }
     }
     public PlayingAdvert getPlayingAd(Long posid){
         int playindex = 0;
-        List<PlayingAdvert> adList  = mAdvertMap.get(posid);
-        if(mAdvertIndex.containsKey(posid))
-            playindex = mAdvertIndex.get(posid);
-        if(playindex>0) playindex--;
-        if(adList!=null && adList.size()>0) {
-            int index = playindex % adList.size();
-            PlayingAdvert item = adList.get(index);
-            return item;
+        if(mAdvertList!=null && mAdvertList.size()>0 && mScheduleIndex>=0) {
+            AdvertData advertData = mAdvertList.get(mScheduleIndex);
+            Map<Long, List<PlayingAdvert>> advertMap = advertData.getAdvertMap();
+            List<PlayingAdvert> adList = advertMap.get(posid);
+            if (mAdvertIndex.containsKey(posid))
+                playindex = mAdvertIndex.get(posid);
+            if (playindex > 0) playindex--;
+            if (adList != null && adList.size() > 0) {
+                int index = playindex % adList.size();
+                PlayingAdvert item = adList.get(index);
+                return item;
+            }
         }
         return null;
     }
     public void setPlayListUpdate(String isUpdated){
-        DevRing.cacheManager().diskCache("advertMap").put("isUpdated",isUpdated);
+        DevRing.cacheManager().diskCache("advertList").put("isUpdated",isUpdated);
     }
     public boolean isAdListUpdated(){
         boolean res = false;
-        String isUpdated = DevRing.cacheManager().diskCache("advertMap").getString("isUpdated","0");
+        String isUpdated = DevRing.cacheManager().diskCache("advertList").getString("isUpdated","0");
         if(isUpdated!=null && Integer.valueOf(isUpdated)==1) res = true;
         return res;
     }

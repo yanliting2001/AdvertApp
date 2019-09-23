@@ -10,7 +10,8 @@ public interface UrlConstants {
 
     //String BASE_URL = "https://api.douban.com/";
     //String BASE_URL = "https://api.dsp.grandartisans.cn/v1/";
-    String BASE_URL = "http://test.api.dsp.grandartisans.cn/v1/";
+    //String BASE_URL = "http://test.api.dsp.grandartisans.cn/v1/";
+    String BASE_URL = "http://192.1.1.38:8081/v1/";
     //String BASE_URL = "http://192.1.1.33:8081/v1/";
     String GET_PLAYING_MOVIE = "v2/movie/in_theaters";
     String GET_COMMING_MOVIE = "v2/movie/coming_soon";

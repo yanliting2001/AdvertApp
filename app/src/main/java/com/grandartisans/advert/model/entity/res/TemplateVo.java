@@ -32,7 +32,7 @@ public class TemplateVo {
 	
 	private Template template;
 	
-	private List<TemplateReginVo> regionList = new ArrayList<>();
+	private List<TemplateReginVo> regionList;
 
 	public Template getTemplate() {
 		return template;
