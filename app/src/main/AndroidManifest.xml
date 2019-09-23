@@ -77,6 +77,11 @@
         <activity
             android:name=".activity.SurfacePlayerActivity"
             android:label="@string/title_activity_suface_player_test" />
+        <activity
+            android:name=".activity.MyAppActivity"
+            android:label="@string/activity_button_myapp"
+            android:theme="@style/tv_guide_style" >
+        </activity>
 
         <receiver android:name=".receiver.BootReceiver">
             <intent-filter>

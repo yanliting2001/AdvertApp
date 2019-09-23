@@ -1,0 +1,28 @@
+<resources>
+ <style name="tv_guide_style">
+        <item name="android:windowBackground">@color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:layout_width">760dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowFullscreen">?android:windowNoTitle</item>
+        <item name="android:windowAnimationStyle">@style/activityAnimation</item>
+ </style>
+ <style name="tv_guide_style_noanimation">
+        <item name="android:windowBackground">@color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:layout_width">760dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowFullscreen">?android:windowNoTitle</item>
+ </style>
+</resources>
+
+<!-- 
+windowNoTitle将activity设置为无title模式；
+ layout_width、layout_height分别设置activity布局的宽和长；
+  windowIsTranslucent、 windowAnimationStyle通过在
+  background.xml设置的填充色及Animation.Translucent,
+  将填充色设置为透明的。
+
+ -->

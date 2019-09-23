@@ -26,4 +26,27 @@
 
 
     <string name="celsius">\u2103</string>
+
+    <string name="activity_button_myapp">我的应用</string>
+    <string name="local_list_loading">正在努力加载中...</string>
+    <string name="local_list_empty">列表空空如也</string>
+    <string name="activity_button_appmanager">应用管理</string>
+    <string name="tips_isrunning">正在运行</string>
+    <string name="tips_noinstall">未安装</string>
+    <string name="tips_readyinstall">待安装</string>
+    <string name="tips_installed">已安装</string>
+    <string name="system_tips">提示</string>
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
+    <string name="uninstallapp">是否卸载该应用？</string>
+    <string name="cleardata_success">清除数据成功！</string>
+    <string name="clear_cache_sucess">清除缓存成功</string>
+    <string name="string_notify">提示</string>
+    <string name="string_nit_search_info">Search 30 Seconds Later</string>
+    <string name="uninstall_tips_ing">卸载还在进行中，请稍候. . .</string>
+    <string name="app_menu_stop">强制停止</string>
+    <string name="app_menu_run">运 行</string>
+    <string name="app_menu_cleardata">清除数据</string>
+    <string name="app_menu_clearcache">清除缓存</string>
+    <string name="app_menu_uninstall">卸 载</string>
 </resources>

@@ -7,6 +7,9 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.net.Uri;
@@ -512,5 +515,125 @@ public class CommonUtil {
             RingLog.d("haveUdisk", "recorder to internal disk");
             return false;
         }
+    }
+
+    public static boolean IsAppInstalled(Context mcontext, String packageName) {
+        PackageInfo pi;
+        try {
+            pi = mcontext.getPackageManager().getPackageInfo(packageName, 0);
+            Intent resolveIntent = new Intent(Intent.ACTION_MAIN, null);
+            resolveIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            resolveIntent.setPackage(pi.packageName);
+            PackageManager pm = mcontext.getPackageManager();
+            List<ResolveInfo> apps = pm.queryIntentActivities(resolveIntent, 0);
+            if (apps != null && apps.size() > 0) {
+                ResolveInfo ri = apps.iterator().next();
+                if (ri != null) {
+                    return true;
+                }
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return false;
+        }
+        return false;
+    }
+
+    public static void startApp(Context mcontext, String packageName, String mode) {
+        /*
+        Intent it = new Intent();
+        it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        it.putExtra("packagename", packageName);
+        it.putExtra("mode", mode);
+        it.setClass(mcontext, StartAppActivity.class);
+        mcontext.startActivity(it);
+        */
+    }
+    public static boolean openAPP(Context mcontext, String packageName, String mode) {
+        PackageInfo pi;
+        try {
+            operationModeMethod(mcontext, packageName, mode);// 查看应用支持的操作模式
+            pi = mcontext.getPackageManager().getPackageInfo(packageName, 0);
+            Intent resolveIntent = new Intent(Intent.ACTION_MAIN, null);
+            resolveIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            resolveIntent.setPackage(pi.packageName);
+            PackageManager pm = mcontext.getPackageManager();
+            List<ResolveInfo> apps = pm.queryIntentActivities(resolveIntent, 0);
+            if (apps != null && apps.size() > 0) {
+                ResolveInfo ri = apps.iterator().next();
+                if (ri != null) {
+                    // String packageName = ri.activityInfo.packageName;
+                    String className = ri.activityInfo.name;
+                    Intent intent = new Intent(Intent.ACTION_MAIN);
+                    intent.addCategory(Intent.CATEGORY_LAUNCHER);
+                    ComponentName cn = new ComponentName(packageName, className);
+                    intent.setComponent(cn);
+                    // send_pause_cmd(mcontext);
+                    mcontext.startActivity(intent);
+
+                    // if (!"com.go3c.launcher".equals(packageName)) {
+                    // // 设置音频模式
+                    // Message msg = new Message();
+                    // msg.what = Go3CPlayerDef.CHANGE_AUDIO;
+                    // Bundle b = new Bundle();
+                    // b.putString("autiotype", "hdmi");
+                    // msg.setData(b);
+                    // Go3cApplication application = (Go3cApplication)
+                    // mcontext.getApplicationContext();
+                    // Handler playerHandler = application.getPlayerHandler();
+                    // playerHandler.sendMessageDelayed(msg, 1000);
+                    // }
+
+                    return true;
+                }
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            // String str =
+            // mcontext.getResources().getString(R.string.string_app_start_error);
+            // UIHelper.sendToast(mcontext,str);
+            return false;
+        }
+        return false;
+    }
+
+    // 查看应用支持的操作模式，多操作模式中间用“,”隔开
+    private static void operationModeMethod(Context mcontext, String packageName, String mode) {
+        if (mode != null && !"".equals(mode)) {
+            // String[] modes = mode.split(",");
+            // boolean supportMouse = false;
+            // for (String string : modes) {
+            // if ("mouse".equalsIgnoreCase(string)) {
+            // supportMouse = true;
+            // break;
+            // }
+            // }
+
+            if ("mouse".equalsIgnoreCase(mode)) {// 鼠标模式
+                sendKey(mcontext);
+                //MainActivity.currentOperationMode = 1;
+            }
+        }
+    }
+
+    private static void sendKey(Context mcontext) {
+        //RemoteImpl remoteImpl = new RemoteImpl(mcontext);
+        //remoteImpl.sendKey(Params.REMOTE_CONTROL_SERVER, 200);
+    }
+
+    public static void uninstallApk(Context context, String packageName) {
+        Uri packageURI = Uri.parse("package:" + packageName);
+        Intent uninstallIntent = new Intent(Intent.ACTION_DELETE, packageURI);
+        context.startActivity(uninstallIntent);
+    }
+
+    public static void installApk(Context mcontext, String filePath, String fileName) {
+        File file = new File(filePath, fileName);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive");
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        mcontext.startActivity(intent);
     }
 }

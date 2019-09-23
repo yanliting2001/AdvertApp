@@ -1,4 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="AppTheme" parent="@style/Theme.Leanback" />
+    <!-- popwidnow 显示消失动画-->
+
+    <style name="mypopwindow_anim_style">
+
+        <item name="android:windowEnterAnimation">@anim/popshow_anim</item>        <!-- 指定显示的动画xml  -->
+
+        <item name="android:windowExitAnimation">@anim/pophide_anim</item>       <!-- 指定消失的动画xml  -->
+
+    </style>
+
+    <!-- 自定义progressbar的大小 -->
+    <style name="CustomProgressStyle" parent="@android:style/Widget.ProgressBar.Large">
+        <item name="android:minWidth">50dip</item>
+        <item name="android:maxWidth">50dip</item>
+        <item name="android:minHeight">50dip</item>
+        <item name="android:maxHeight">50dip</item>
+    </style>
+    <!-- 公用dialog title字体样式 -->
+    <style name="SettingsCommonDialogTitle">
+        <item name="android:textColor">#A1F8FD</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 公用dialog 内容字体样式 -->
+    <style name="SettingsCommonDialogContent">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+    <!-- 公用dialog 按钮字体样式 -->
+    <style name="SettingsCommonDialogBtn">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+    <style name="CommonDialog" parent="android:style/Theme.Dialog">
+        <item name="android:windowBackground">@drawable/translucent_background</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:layout_marginLeft">0dp</item>
+    </style>
+    <!-- animation 样式 -->
+    <style name="activityAnimation" parent="@android:style/Animation">
+        <item name="android:activityOpenEnterAnimation">@anim/push_left_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/push_left_out</item>
+    </style>
+    <drawable name="translucent_background">#00000000</drawable>
 </resources>

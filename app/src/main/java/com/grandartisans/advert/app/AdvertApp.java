@@ -2,6 +2,12 @@ package com.grandartisans.advert.app;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
 
 import com.grandartisans.advert.app.constant.UrlConstants;
@@ -14,6 +20,11 @@ import org.xutils.DbManager;
 import org.xutils.x;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Aspsine on 2015/4/20.
@@ -23,6 +34,7 @@ public class AdvertApp extends Application {
     private static PlayingAdvert mAdvert;
     private static DbManager.DaoConfig daoConfig;
     private static DbManager db;
+    private List<Map<String, Object>> installed = new ArrayList<Map<String, Object>>();
 
     @Override
     protected void attachBaseContext(Context base) {
@@ -125,5 +137,93 @@ public class AdvertApp extends Application {
     }
     public static DbManager getDb(){return db;}
 
+    public void initApps() {
+        GetAppsAsync getapps = new GetAppsAsync();
+        getapps.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+    public List<Map<String, Object>> getInstalled() {
+        return installed;
+    }
+
+    public void setInstalled(List<Map<String, Object>> installed) {
+        this.installed = installed;
+    }
+    class GetAppsAsync extends AsyncTask<String, Integer, List<Map<String, Object>>> {
+
+        @Override
+        protected List<Map<String, Object>> doInBackground(String... params) {
+
+            PackageManager pm = getPackageManager();
+            List<PackageInfo> list = pm.getInstalledPackages(PackageManager.GET_UNINSTALLED_PACKAGES);
+
+            // 把用户安装的应用放在前面，系统应用放在后面
+            List<PackageInfo> tempList = new ArrayList<PackageInfo>();
+            List<PackageInfo> sysTempList = new ArrayList<PackageInfo>();
+            List<PackageInfo> userTempList = new ArrayList<PackageInfo>();
+            for (PackageInfo packageInfo : list) {
+                if ((packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                    userTempList.add(packageInfo);
+                } else {
+                    sysTempList.add(packageInfo);
+
+                }
+            }
+
+            tempList.addAll(userTempList);
+            tempList.addAll(sysTempList);
+
+            for (PackageInfo packageInfo : tempList) {
+                addAppToInstallList(pm, packageInfo, "asc");
+                //savePhoneIcons(packageInfo.packageName);
+            }
+
+            // createAppsInfo(installed);
+
+            return installed;
+        }
+
+        @Override
+        protected void onPostExecute(List<Map<String, Object>> result) {
+        }
+    }
+    private void addAppToInstallList(PackageManager pm, PackageInfo packageInfo, String order) {
+        if (!packageInfo.packageName.equals(getPackageName())) {
+            Map<String, Object> map = new HashMap<String, Object>();
+            map.put("package", packageInfo.packageName);
+            map.put("version", packageInfo.versionName);
+            String appLable = (String) pm.getApplicationLabel(packageInfo.applicationInfo);
+
+            map.put("title", appLable);
+            map.put("id", -1);
+            String apkpath = packageInfo.applicationInfo.publicSourceDir;
+            File temp = new File(apkpath);
+            BigDecimal bd = new BigDecimal(temp.length());
+            float size = bd.divide(new BigDecimal(1024 * 1024), 2, BigDecimal.ROUND_HALF_UP).floatValue();
+            map.put("size", size);
+
+            if ((packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                map.put("issystem", 0);
+
+                if ("asc".equals(order)) {
+                    installed.add(map);
+                } else {
+                    installed.add(0, map);
+                }
+            } else {
+                map.put("issystem", 1);
+                Intent resolveIntent = new Intent(Intent.ACTION_MAIN, null);
+                resolveIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+                resolveIntent.setPackage(packageInfo.packageName);
+                List<ResolveInfo> apps = pm.queryIntentActivities(resolveIntent, 0);
+                if (apps != null && apps.size() > 0) {
+                    if ("asc".equals(order)) {
+                        installed.add(map);
+                    } else {
+                        installed.add(0, map);
+                    }
+                }
+            }
+        }
+    }
 
 }

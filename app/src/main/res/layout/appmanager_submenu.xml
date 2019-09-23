@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical" >
+
+    <RelativeLayout
+        android:layout_width="110dp"
+        android:layout_height="195dp" >
+
+        <View
+            android:layout_width="110dp"
+            android:layout_height="195dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/item_operate_border" />
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/appmanager_run"
+                android:layout_width="fill_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/selectsongbg"
+                android:clickable="true"
+                android:focusable="true"
+                android:text="@string/app_menu_run"
+                android:gravity="center"
+                android:textSize="22sp" />
+            
+            <TextView
+                android:id="@+id/appmanager_stop"
+                android:layout_width="fill_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/selectsongbg"
+                android:clickable="true"
+                android:focusable="true"
+                android:text="@string/app_menu_stop"
+                android:visibility="gone"
+                android:gravity="center"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/appmanager_cleardata"
+                android:layout_width="fill_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/selectsongbg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/app_menu_cleardata"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/appmanager_clearcache"
+                android:layout_width="fill_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/selectsongbg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/app_menu_clearcache"
+                android:visibility="gone"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/appmanager_uninstall"
+                android:layout_width="fill_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/selectsongbg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/app_menu_uninstall"
+                android:textSize="22sp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+</LinearLayout>
