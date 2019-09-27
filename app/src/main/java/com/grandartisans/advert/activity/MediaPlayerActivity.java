@@ -1361,6 +1361,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				}
 			}
 		}
+		@Override
+		public void onElevatorError(){
+			CommonUtil.reboot(MediaPlayerActivity.this);
+		}
 	};
 
 	RecorderEventListener mRecorderEventListener = new RecorderEventListener(){

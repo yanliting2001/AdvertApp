@@ -61,7 +61,6 @@
             android:launchMode="singleTask"
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
-            android:screenOrientation="portrait"
             android:configChanges="orientation|mcc|mnc|locale|keyboard|keyboardHidden|screenLayout|uiMode|fontScale|screenSize|smallestScreenSize|navigation">
             <intent-filter android:priority="180">
                 <action android:name="android.intent.action.MAIN" />

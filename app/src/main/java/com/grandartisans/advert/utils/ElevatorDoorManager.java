@@ -11,6 +11,7 @@ public class ElevatorDoorManager {
     private int strength = 0;
     private int threshold_distance = 0;
     private int lastdistance = 0;
+    private int mtfminError = 0;
 
     static final int DOOR_STATE_INIT  = 0;
     static final int DOOR_STATE_OPENED  = 1;
@@ -61,6 +62,17 @@ public class ElevatorDoorManager {
                 //Log.i(TAG, "进入数据监听事件中。。。" + new String(buffer));
                 if(CommonUtil.getTFMiniEnabled()==0) return;
                 distance = dealWithData(buffer,size);
+                int value = dealWithData(buffer,size);
+                if(value==0){
+                    mtfminError +=1;
+                    if(mtfminError >300) {
+                        if (mElevatorDoorEventListener != null)
+                            mElevatorDoorEventListener.onElevatorError();
+                    }
+                }else{
+                    distance = value;
+                    mtfminError = 0;
+                }
                 if(serialPortUtils.serialPortStatus) {
                     //handler.post(ReadThread);
                     if (lastdistance != distance && Math.abs(distance-lastdistance)>5) {
