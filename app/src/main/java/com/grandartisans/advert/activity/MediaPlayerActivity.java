@@ -56,6 +56,7 @@ import com.grandartisans.advert.interfaces.ElevatorDoorEventListener;
 import com.grandartisans.advert.interfaces.ElevatorEventListener;
 import com.grandartisans.advert.interfaces.RecorderEventListener;
 import com.grandartisans.advert.model.AdvertModel;
+import com.grandartisans.advert.model.PlayerCmd;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.model.entity.event.AppEvent;
 import com.grandartisans.advert.model.entity.post.EventParameter;
@@ -170,6 +171,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int UPDATE_TIME_INFO_CMD = 100030;
 	private final int HIDE_UGRENT_INFO_CMD = 100031;
 
+	private final int AD_PLAYER_CMD = 100032;
+
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
@@ -216,6 +219,18 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private boolean mContinuePlayWhenScreenOff = false;
 
 	private  Api encApi=null;
+
+
+	private Handler mPlayerHandler = new Handler() {
+		public void handleMessage(Message paramMessage) {
+			switch (paramMessage.what) {
+				case AD_PLAYER_CMD:
+					PlayerCmd playerCmd = (PlayerCmd) paramMessage.obj;
+					processPlayerCmd(playerCmd.getCmd(), playerCmd.getUrl());
+					break;
+			}
+		}
+	};
 
 	private Handler mHandler = new Handler()
 	{
@@ -370,9 +385,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}
 	};
 
-	private void onPlayerCmd(String cmd,String url){
+	private void onPlayerCmd(String cmd,String url) {
+		PlayerCmd playerCmd = new PlayerCmd();
+		playerCmd.setCmd(cmd);
+		playerCmd.setUrl(url);
+		Message msg = new Message();
+		msg.what = AD_PLAYER_CMD;
+		msg.obj = playerCmd;
+		mPlayerHandler.sendMessage(msg);
+	}
+	private void processPlayerCmd(String cmd,String url){
+		Log.d(TAG,"processPlayerCmd cmd:" + cmd + "PlayerState :"  + getPlayerState());
 		if(cmd.equals("reset")){
-			if(getPlayerState()==PLAYER_STATE_PLAYING){
+			if(getPlayerState()==PLAYER_STATE_PLAYING
+					||getPlayerState()==PLAYER_STATE_PAUSED){
 				PlayerStop();
 			}
 			PlayerRelease();
