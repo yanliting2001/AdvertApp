@@ -66,15 +66,16 @@ public class AdPlayListManager {
     }
     public boolean init(Context context){
         boolean res = false;
+
         String jsondata = DevRing.cacheManager().diskCache("advertList").getString("playList");
         Gson gson = new Gson();
         if (jsondata!=null) {
             mAdvertList = new ArrayList<>();
             mAdvertList = gson.fromJson(jsondata, new TypeToken<List<AdvertData>>() {}.getType());
-            initPlayerIndex();
         }else {
             mAdvertList = null;
         }
+        initPlayerIndex();
         String destPath = FileUtil.getExternalCacheDir(context);
         File file = new File(destPath + "/default");
         if(!file.exists()){
