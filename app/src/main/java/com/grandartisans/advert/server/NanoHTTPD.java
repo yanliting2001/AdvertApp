@@ -1542,7 +1542,6 @@ public abstract class NanoHTTPD {
         protected void send(OutputStream outputStream) {
             SimpleDateFormat gmtFrmt = new SimpleDateFormat("E, d MMM yyyy HH:mm:ss 'GMT'", Locale.US);
             gmtFrmt.setTimeZone(TimeZone.getTimeZone("GMT"));
-
             try {
                 if (this.status == null) {
                     throw new Error("sendResponse(): Status can't be null.");
@@ -1580,7 +1579,9 @@ public abstract class NanoHTTPD {
                 outputStream.flush();
                 safeClose(this.data);
             } catch (IOException ioe) {
-                NanoHTTPD.LOG.log(Level.SEVERE, "Could not send response to the client", ioe);
+                safeClose(this.data);
+                NanoHTTPD.LOG.log(Level.SEVERE, "!!!! Could not send response to the client", ioe);
+
             }
         }
 

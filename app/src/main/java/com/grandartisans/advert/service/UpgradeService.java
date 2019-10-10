@@ -626,6 +626,9 @@ public class UpgradeService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        Intent localIntent = new Intent();
+        localIntent.setClass(this, UpgradeService.class); //销毁时重新启动Service
+        startService(localIntent);
     }
 
     private void LogcatDumpStart(){

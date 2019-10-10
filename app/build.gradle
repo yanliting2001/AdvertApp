@@ -6,8 +6,8 @@ android {
         applicationId "com.grandartisans.advert"
         minSdkVersion 19
         targetSdkVersion 22
-        versionCode 53
-        versionName "1.1.41"
+        versionCode 54
+        versionName "1.1.42"
         ndk {
             abiFilters "armeabi-v7a"
         }
@@ -62,7 +62,7 @@ dependencies {
     api 'org.greenrobot:eventbus:3.0.0'
     //用于替换fresco的网络加载为okhttp
     implementation files('libs/prjManager.jar')
-    implementation files('libs/nanohttpd-2.3.1.jar')
+    //implementation files('libs/nanohttpd-2.3.1.jar')
     provided files('libs/pico.jar')
     implementation files('libs/bcprov-jdk15on-1.59.jar')
     implementation files('libs/junjiangSdk.jar')
