@@ -172,6 +172,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int HIDE_UGRENT_INFO_CMD = 100031;
 
 	private final int AD_PLAYER_CMD = 100032;
+    private final int CHECK_PLAYER_START_CMD = 100033;
 
 	private String mMode ="";
 
@@ -214,7 +215,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private Long mStartPlayTime ;
 	private Long mPausePlayTime;
 	private int mPlayingAdDuration;
-	private Long mPlayingAdType;
+	private Long mPlayingAdType = 2L;
 
 	private boolean mContinuePlayWhenScreenOff = false;
 
@@ -228,6 +229,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					PlayerCmd playerCmd = (PlayerCmd) paramMessage.obj;
 					processPlayerCmd(playerCmd.getCmd(), playerCmd.getUrl());
 					break;
+                case CHECK_PLAYER_START_CMD:
+                    if(getPlayerState()==PLAYER_STATE_PREPARING){
+                        onVideoPlayCompleted(true);
+                    }
+                    break;
 			}
 		}
 	};
@@ -600,7 +606,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				});
 		mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
 			@Override public void onPrepared(MediaPlayer mp) {
-
+                mPlayerHandler.removeMessages(CHECK_PLAYER_START_CMD);
                 Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight() + "screenStatus = " + getScreenStatus());
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
@@ -643,6 +649,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			try{
 				mMediaPlayer.prepareAsync();
 				setPlayerState(PLAYER_STATE_PREPARING);
+				mPlayerHandler.sendEmptyMessageDelayed(CHECK_PLAYER_START_CMD,2*1000);
 			}catch(IllegalStateException e) {
 				onPlayerCmd("release","");
 				onVideoPlayCompleted(true);
@@ -1326,6 +1333,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		@Override
 		public void onRecoderStart(){
 			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD,  1000);
+		}
+		@Override
+		public void onPrintInfo(){
+			if(mElevatorDoorManager!=null) mElevatorDoorManager.printDoorManagerInfo();
+			if(mElevatorStatusManager!=null) mElevatorStatusManager.printDoorStatusInfo();
+			Log.i(TAG,"Screen Status = " + getScreenStatus() + "player status = " + getPlayerState() + "isPowerOff = " + isPowerOff);
 		}
 	};
 

@@ -224,4 +224,11 @@ public class AdPlayListManager {
         setPlayListUpdate("1");
         if(mAdListEventListener!=null) mAdListEventListener.onRecoderStart();
     }
+    public void printInfo(){
+        if(mAdListEventListener!=null) mAdListEventListener.onPrintInfo();
+    }
+    public boolean isPlayerActivit(){
+        if(mAdListEventListener!=null) return true;
+        else return false;
+    }
 }

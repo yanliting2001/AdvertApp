@@ -36,6 +36,9 @@ public class ElevatorStatusManager implements SensorEventListener {
     public ElevatorStatusManager(Context context,String mMode,float defaultValue){
         initAccSensor(context,mMode,defaultValue);
     }
+    public void printDoorStatusInfo(){
+        Log.i(TAG,"mLastZ= "+ mLastZ + " mInitZ = "  + mInitZ );
+    }
 
     public void setAccSensorDefaultValue(float value){
         mInitZ = value;

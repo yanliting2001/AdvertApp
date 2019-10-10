@@ -125,6 +125,8 @@ public class UpgradeService extends Service {
     private final int START_GET_INFO_CMD = 10009;
     private final int START_GET_WEATHER_INFO_CMD = 10010;
     private final int UPLOAD_LOGCAT_CMD = 10011;
+    private final int PRINT_INFO_CMD = 10012;
+    private final int CHECK_PLAYER_ACTIVITY_CMD = 10013;
 
     private final int UPLOAD_LOGCAT_INTERVAL_TIME = 10*60*1000;// 心跳检测发送时间
     private final int HEART_BEAT_INTERVAL_TIME = 60*1000;// 心跳检测发送时间
@@ -573,6 +575,16 @@ public class UpgradeService extends Service {
                         //sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
                     }
                     break;
+                case PRINT_INFO_CMD:
+                    if(mPlayListManager!=null) mPlayListManager.printInfo();
+                    mHandler.removeMessages(PRINT_INFO_CMD);
+                    mHandler.sendEmptyMessageDelayed(PRINT_INFO_CMD, 1000*5);
+                    break;
+                case CHECK_PLAYER_ACTIVITY_CMD:
+                    checkPlayerActivity();
+                    mHandler.removeMessages(CHECK_PLAYER_ACTIVITY_CMD);
+                    mHandler.sendEmptyMessageDelayed(CHECK_PLAYER_ACTIVITY_CMD, 1000*5);
+                    break;
                 default:
                     break;
             }
@@ -605,6 +617,7 @@ public class UpgradeService extends Service {
         uploadLog(getApplicationContext());
         appUpgrade(getApplicationContext());
         getToken(false);
+        mHandler.sendEmptyMessageDelayed(CHECK_PLAYER_ACTIVITY_CMD,30*1000);
 
         //mHandler.sendEmptyMessageDelayed(SHOW_TIME_INFO_CMD,3*1000);
         return super.onStartCommand(intent, flags, startId);
@@ -624,6 +637,7 @@ public class UpgradeService extends Service {
     private void LogcatDumpStop(){
         mHandler.removeMessages(UPLOAD_LOGCAT_CMD);
         if(logHelper!=null) logHelper.stop();
+        mHandler.removeMessages(PRINT_INFO_CMD);
     }
     private void appUpgrade (Context context) {
         String signed="";
@@ -795,6 +809,16 @@ public class UpgradeService extends Service {
 
                     }
                 }
+            }
+        }
+    }
+
+    private void checkPlayerActivity(){
+        if(mPlayListManager!=null) {
+            if(!mPlayListManager.isPlayerActivit()){
+                Intent it = new Intent(getApplicationContext(), MediaPlayerActivity.class);
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(it);
             }
         }
     }
@@ -1005,6 +1029,11 @@ public class UpgradeService extends Service {
                                     if(mPlayListManager!=null) mPlayListManager.setOnRecorderStart();
                                 }else if(dataItem.getEventID().equals("1013")){/*上传日志*/
                                     LogcatDumpStart();
+                                    if(mPlayListManager!=null){
+                                        mPlayListManager.printInfo();
+                                    }
+                                    mHandler.removeMessages(PRINT_INFO_CMD);
+                                    mHandler.sendEmptyMessageDelayed(PRINT_INFO_CMD, 1000*5);
                                 }
                             }
                         }

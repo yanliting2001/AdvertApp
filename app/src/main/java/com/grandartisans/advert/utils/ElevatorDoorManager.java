@@ -52,6 +52,9 @@ public class ElevatorDoorManager {
             serialPortUtils.closeSerialPort();
         }
     }
+    public void printDoorManagerInfo(){
+        Log.i(TAG,"lastdistance= "+ lastdistance + " distance = "  + distance + "threshold_distance = " + threshold_distance);
+    }
     private void initserialPort()
     {
         serialPortUtils = new SerialPortUtils();
@@ -61,7 +64,6 @@ public class ElevatorDoorManager {
             public void onDataReceive(byte[] buffer, int size) {
                 //Log.i(TAG, "进入数据监听事件中。。。" + new String(buffer));
                 if(CommonUtil.getTFMiniEnabled()==0) return;
-                distance = dealWithData(buffer,size);
                 int value = dealWithData(buffer,size);
                 if(value==0){
                     mtfminError +=1;
@@ -124,4 +126,5 @@ public class ElevatorDoorManager {
 		*/
 		return distance;
     }
+
 }
