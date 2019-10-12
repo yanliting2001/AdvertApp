@@ -5,9 +5,9 @@ android {
     defaultConfig {
         applicationId "com.grandartisans.advert"
         minSdkVersion 19
-        targetSdkVersion 22
-        versionCode 54
-        versionName "1.1.42"
+        targetSdkVersion 27
+        versionCode 56
+        versionName "1.1.44"
         ndk {
             abiFilters "armeabi-v7a"
         }
@@ -67,5 +67,4 @@ dependencies {
     implementation files('libs/bcprov-jdk15on-1.59.jar')
     implementation files('libs/junjiangSdk.jar')
     compile 'com.android.support:multidex:1.0.1'
-    compile project(':vitamio')
 }

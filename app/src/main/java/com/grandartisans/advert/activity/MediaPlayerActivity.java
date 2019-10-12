@@ -25,6 +25,7 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -100,12 +101,6 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import gartisans.hardware.pico.PicoClient;
 
-import io.vov.vitamio.LibsChecker;
-import io.vov.vitamio.MediaPlayer;
-import io.vov.vitamio.MediaPlayer.OnBufferingUpdateListener;
-import io.vov.vitamio.MediaPlayer.OnCompletionListener;
-import io.vov.vitamio.MediaPlayer.OnPreparedListener;
-import io.vov.vitamio.MediaPlayer.OnVideoSizeChangedListener;
 
 public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback,SrsEncodeHandler.SrsEncodeListener {
 	private final String TAG = "MediaPlayerActivity";
@@ -214,6 +209,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private Long mStartPlayTime ;
 	private Long mPausePlayTime;
+	private Long mPlayedTime = 0L;
 	private int mPlayingAdDuration;
 	private Long mPlayingAdType = 2L;
 
@@ -456,6 +452,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 	private void PlayerPause(){
 		if(mMediaPlayer!=null) {
+			Log.d(TAG,"onPlayer Pause ");
 			mMediaPlayer.pause();
 			setPlayerState(PLAYER_STATE_PAUSED);
 		}
@@ -463,6 +460,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void PlayerResume(){
 		if(mMediaPlayer!=null) {
 			mMediaPlayer.start();
+			Log.d(TAG,"onPlayer Resume isPlaying = " + mMediaPlayer.isPlaying() + "position = " + mMediaPlayer.getCurrentPosition() + "duration = " + mMediaPlayer.getDuration());
 			setPlayerState(PLAYER_STATE_PLAYING);
 		}
 	}
@@ -550,8 +548,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initView(){
-		if (!LibsChecker.checkVitamioLibs(this))
-			return;
         // 判断有无排期模板缓存 有则进行排板 无则使用默认模板
         TerminalAdvertPackageVo tapvo = getScheduleTimesCache();
         relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
@@ -593,15 +589,15 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	 * 初始化播放首段视频的player
 	 */
 	private void initFirstPlayer() {
-		mMediaPlayer = new MediaPlayer(this);
+		mMediaPlayer = new MediaPlayer();
 		mMediaPlayer.reset();
-		//mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mMediaPlayer.setDisplay(surfaceHolder);
 		mMediaPlayer
 				.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 					@Override
 					public void onCompletion(MediaPlayer mp) {
-						onVideoPlayCompleted(true);
+						//onVideoPlayCompleted(true);
 					}
 				});
 		mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
@@ -649,7 +645,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			try{
 				mMediaPlayer.prepareAsync();
 				setPlayerState(PLAYER_STATE_PREPARING);
-				mPlayerHandler.sendEmptyMessageDelayed(CHECK_PLAYER_START_CMD,2*1000);
+				//mPlayerHandler.sendEmptyMessageDelayed(CHECK_PLAYER_START_CMD,2*1000);
 			}catch(IllegalStateException e) {
 				onPlayerCmd("release","");
 				onVideoPlayCompleted(true);
@@ -680,6 +676,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			String url = item.getPath();
 			Log.i(TAG,"player advertFile vType = " + item.getvType() + "url = " + item.getPath());
 			mPlayingAdType = item.getvType();
+			mPlayedTime = 0L;
         	if(item.getvType()==2) { //视频广告
 				//surface.setVisibility(View.VISIBLE);
 				mImageMain.setVisibility(View.GONE);
@@ -688,8 +685,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					int duration = item.getDuration();
 					mPlayingAdDuration = duration;
 					mStartPlayTime = System.currentTimeMillis();
-					//mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
-					//mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
+					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
+					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
 				}
 			}else if(item.getvType()==1) {
 				//surface.setVisibility(View.GONE);
@@ -1043,7 +1040,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 			if(!continuePlay) {
 				if (mPlayingAdType == 2) {
+					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 					onPlayerCmd("pause","");
+					mPausePlayTime = System.currentTimeMillis();
+					RingLog.d(TAG, "remainingTime mPausePlayTime " + mPausePlayTime);
 				} else if (mPlayingAdType == 1) {
 					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 					mPausePlayTime = System.currentTimeMillis();
@@ -1057,12 +1057,21 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			setScreen(1);
 			if (mPlayingAdType == 2) {
 					onPlayerCmd("resume","");
+					Long playedTime = mPausePlayTime - mStartPlayTime;
+					mPlayedTime += playedTime;
+					Long remainingTime = mPlayingAdDuration * 1000 - mPlayedTime;
+					if (remainingTime < 0) remainingTime = Long.valueOf(mPlayingAdDuration * 1000);
+					RingLog.d(TAG, "Player is resumed, Duration= " + mPlayingAdDuration +"playeredTime = " +mPlayedTime+ "remainingTime = " + remainingTime);
+					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD, remainingTime);
+					mStartPlayTime = System.currentTimeMillis();
 			} else if (mPlayingAdType == 1) {
 					Long playedTime = mPausePlayTime - mStartPlayTime;
-					Long remainingTime = mPlayingAdDuration * 1000 - playedTime;
+					mPlayedTime += playedTime;
+					Long remainingTime = mPlayingAdDuration * 1000 - mPlayedTime;
 					if (remainingTime < 0) remainingTime = Long.valueOf(mPlayingAdDuration * 1000);
 					RingLog.d(TAG, "Player is resumed, remainingTime = " + remainingTime);
 					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD, remainingTime);
+					mStartPlayTime = System.currentTimeMillis();
 			}
 			RingLog.d(TAG, "setScreenOn IsCameraServiceOn = " + IsCameraServiceOn);
 			if(IsCameraServiceOn) {
@@ -1394,7 +1403,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				if(CommonUtil.getGsensorEnabled()!=0) {
 					mHandler.sendEmptyMessageDelayed(SET_SCREEN_ON_CMD, 1000);
 					mHandler.removeMessages(SET_LIFT_STOP_CMD);
-					mHandler.sendEmptyMessageDelayed(SET_LIFT_STOP_CMD, 1000 * 60*2);
+					mHandler.sendEmptyMessageDelayed(SET_LIFT_STOP_CMD, 1000 * 60);
 				}else{
 					mHandler.sendEmptyMessageDelayed(SET_SCREEN_ON_CMD, 1000);
 				}
