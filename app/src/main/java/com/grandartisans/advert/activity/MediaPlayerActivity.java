@@ -169,6 +169,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private final int AD_PLAYER_CMD = 100032;
     private final int CHECK_PLAYER_START_CMD = 100033;
+	private final int RECORDER_PAUSE_CMD = 100034;
 
 	private String mMode ="";
 
@@ -231,6 +232,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                         onVideoPlayCompleted(true);
                     }
                     break;
+				case RECORDER_PAUSE_CMD:
+					mPublisher.pauseRecord();
+					break;
 			}
 		}
 	};
@@ -1435,8 +1439,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		public void onRecordStart(){
 			if(getScreenStatus()==0){
 				if (IsCameraServiceOn && mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
-					RingLog.d(TAG, "onRecordStart Screen is off, so pause record");
-					mPublisher.pauseRecord();
+					RingLog.d(TAG, "!!!! onRecordStart Screen is off, so pause record");
+					mPlayerHandler.sendEmptyMessageDelayed(RECORDER_PAUSE_CMD,1000);
 				}
 			}
 		}
