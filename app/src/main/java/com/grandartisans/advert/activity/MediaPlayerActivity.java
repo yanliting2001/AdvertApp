@@ -25,7 +25,6 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -88,6 +87,8 @@ import com.ljy.devring.DevRing;
 import com.ljy.devring.http.support.observer.CommonObserver;
 import com.ljy.devring.other.RingLog;
 import com.ljy.devring.util.FileUtil;
+import com.pili.pldroid.player.AVOptions;
+import com.pili.pldroid.player.PLMediaPlayer;
 import com.prj.utils.PrjSettingsManager;
 import com.westone.cryptoSdk.Api;
 
@@ -104,7 +105,7 @@ import gartisans.hardware.pico.PicoClient;
 
 public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback,SrsEncodeHandler.SrsEncodeListener {
 	private final String TAG = "MediaPlayerActivity";
-	private MediaPlayer mMediaPlayer;
+	private PLMediaPlayer mMediaPlayer;
 	private SurfaceView surface;
 	private ImageView mImageMain ;
 	private SurfaceHolder surfaceHolder;
@@ -467,7 +468,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void PlayerStop(){
 		if(mMediaPlayer!=null) {
 			mMediaPlayer.stop();
-			mMediaPlayer.reset();
+			//mMediaPlayer.reset();
 		}
 		setPlayerState(PLAYER_STATE_STOPED);
 	}
@@ -589,19 +590,29 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	 * 初始化播放首段视频的player
 	 */
 	private void initFirstPlayer() {
-		mMediaPlayer = new MediaPlayer();
-		mMediaPlayer.reset();
-		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+		/*
+		AVOptions mAVOptions = new AVOptions();
+		mAVOptions.setInteger(AVOptions.KEY_PREPARE_TIMEOUT, 10 * 1000);
+		// 1 -> hw codec enable, 0 -> disable [recommended]
+		mAVOptions.setInteger(AVOptions.KEY_MEDIACODEC, AVOptions.MEDIA_CODEC_HW_DECODE);
+		mAVOptions.setInteger(AVOptions.KEY_LIVE_STREAMING, 1);
+		mAVOptions.setInteger(AVOptions.KEY_LOG_LEVEL,  0);
+		mAVOptions.setInteger(AVOptions.KEY_START_POSITION, 0);
+		*/
+
+		mMediaPlayer = new PLMediaPlayer(this);
+		//mMediaPlayer.reset();
+		//mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mMediaPlayer.setDisplay(surfaceHolder);
 		mMediaPlayer
-				.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+				.setOnCompletionListener(new PLMediaPlayer.OnCompletionListener() {
 					@Override
-					public void onCompletion(MediaPlayer mp) {
+					public void onCompletion(PLMediaPlayer mp) {
 						//onVideoPlayCompleted(true);
 					}
 				});
-		mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
-			@Override public void onPrepared(MediaPlayer mp) {
+		mMediaPlayer.setOnPreparedListener(new PLMediaPlayer.OnPreparedListener(){
+			@Override public void onPrepared(PLMediaPlayer mp,int preparedTime) {
                 mPlayerHandler.removeMessages(CHECK_PLAYER_START_CMD);
                 Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight() + "screenStatus = " + getScreenStatus());
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
@@ -619,20 +630,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 		});
 
-		mMediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener(){
-		    @Override public boolean onError(MediaPlayer mp,int what, int extra)
+		mMediaPlayer.setOnErrorListener(new PLMediaPlayer.OnErrorListener(){
+		    @Override public boolean onError(PLMediaPlayer mp,int errorcode)
             {
-                Log.d(TAG, "OnError - Error code: " + what + " Extra code: " + extra);
+                Log.d(TAG, "OnError - Error code: " + errorcode );
 				//onVideoPlayCompleted(false);
                 return false;
             }
 
         });
 
-		mMediaPlayer.setOnVideoSizeChangedListener(new MediaPlayer.OnVideoSizeChangedListener(){
-			@Override public void onVideoSizeChanged(MediaPlayer mp,int width,int height) {
+		mMediaPlayer.setOnVideoSizeChangedListener(new PLMediaPlayer.OnVideoSizeChangedListener(){
+			@Override public void onVideoSizeChanged(PLMediaPlayer mp,int width,int height,int videoSar, int videoDen) {
 				Log.d(TAG, "setOnVideoSizeChangedListener  width: " + width + "height: " + height);
-				surfaceHolder.setFixedSize(width,height);
+				//surfaceHolder.setFixedSize(width,height);
 			}
 		});
 		setPlayerState(PLAYER_STATE_INIT);
@@ -641,7 +652,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		try {
             //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
 			Log.d(TAG, "start play: url = " + url );
-			mMediaPlayer.setDataSource(MediaPlayerActivity.this,Uri.parse(url));
+			mMediaPlayer.setDataSource(url);
 			try{
 				mMediaPlayer.prepareAsync();
 				setPlayerState(PLAYER_STATE_PREPARING);
