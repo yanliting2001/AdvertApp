@@ -315,6 +315,9 @@ public class SrsEncoder {
     }
 
     private void onProcessedYuvFrame(byte[] yuvFrame, long pts) {
+        if(vencoder==null){
+            return;
+        }
         ByteBuffer[] inBuffers = vencoder.getInputBuffers();
         ByteBuffer[] outBuffers = vencoder.getOutputBuffers();
 
