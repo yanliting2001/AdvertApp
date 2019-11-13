@@ -45,6 +45,7 @@ import com.grandartisans.advert.model.entity.post.AppUpgradeParameter;
 import com.grandartisans.advert.model.entity.post.DownLoadContent;
 import com.grandartisans.advert.model.entity.post.EventParameter;
 import com.grandartisans.advert.model.entity.post.HeartBeatParameter;
+import com.grandartisans.advert.model.entity.post.NetworkFlow;
 import com.grandartisans.advert.model.entity.post.ReportEventData;
 import com.grandartisans.advert.model.entity.post.ReportInfoParameter;
 import com.grandartisans.advert.model.entity.post.ReportSchedueVerParameter;
@@ -131,6 +132,9 @@ public class UpgradeService extends Service {
     private final int START_GET_INFO_CMD = 10009;
     private final int START_GET_WEATHER_INFO_CMD = 10010;
     private final int UPLOAD_LOGCAT_CMD = 10011;
+    private final int PRINT_INFO_CMD = 10012;
+    private final int CHECK_PLAYER_ACTIVITY_CMD = 10013;
+    private final int REPORT_TRAFFIC_CMD = 10014;
 
     private final int UPLOAD_LOGCAT_INTERVAL_TIME = 10*60*1000;// 心跳检测发送时间
     private final int HEART_BEAT_INTERVAL_TIME = 60*1000;// 心跳检测发送时间
@@ -179,29 +183,44 @@ public class UpgradeService extends Service {
     private Long mTemplateId =0L;
 
     private LogcatHelper logHelper =null;
+    private String getUSBUpgradeFile(String usbPath,String fileName){
+        File upgradeDir = new File(usbPath);
+        if(upgradeDir.exists() && upgradeDir.isDirectory()){
+            File[] files = upgradeDir.listFiles();
+            for (File file : files) {
+                if(file.getAbsolutePath().contains(fileName)) {
+                   return file.getName();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getStringFromFile(String filePath,String fileName){
+        StringBuilder sb1 = new StringBuilder();
+        try {
+            sb1 = FileOperator.convertStreamToString(filePath + "/"+ fileName);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(FileOperator.hexStr2Str(sb1.toString()));
+        return sb.toString();
+    }
 
     Runnable runableUsbUpgrade = new Runnable() {
         @Override
         public void run() {
-            if(FileOperator.fileIsExists(mUsbPath+USB_UPGRADE_DIR+ "/" + USB_UPGRADE_GROUP_ZIPFIlE)){
-                FileOperator.copyFileToDir(mUsbPath+USB_UPGRADE_DIR + "/" + USB_UPGRADE_GROUP_ZIPFIlE,USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR);
-                File file = new File(USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR+"/" + USB_UPGRADE_GROUP_ZIPFIlE);
+            String groupTerminalFileName = getUSBUpgradeFile(mUsbPath+USB_UPGRADE_DIR,USB_UPGRADE_GROUP_ZIPFIlE);
+            if(groupTerminalFileName!=null){
+                FileOperator.copyFileToDir(mUsbPath+USB_UPGRADE_DIR + "/" + groupTerminalFileName,USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR);
+                File file = new File(USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR+"/" + groupTerminalFileName);
                 try {
                     ZipUtils.upZipFile(file,USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                StringBuilder sb1 = new StringBuilder();
-                try {
-                    sb1 = FileOperator.convertStreamToString(USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR + "/"+ USB_UPGRADE_GROUP_ORGFILE);
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-                StringBuilder sb = new StringBuilder();
-                sb.append(FileOperator.hexStr2Str(sb1.toString()));
-
-
-                String eventDataString = sb.toString();
+                String eventDataString = getStringFromFile(USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR,groupTerminalFileName.replace(".GA",".config"));
                 Gson gson = new Gson();
                 if (eventDataString != null) {
                     List<TerminalGroup> list = new ArrayList<>();
@@ -267,85 +286,45 @@ public class UpgradeService extends Service {
 
 
                                 String scheduleFileName = group.getGroupId()+USB_UPGRADE_SCHEDULE_SUB+USB_UPGRADE_FILE_SUFFIX;
+                                String upgradeScheduleFileName = getUSBUpgradeFile(mUsbPath + USB_UPGRADE_DIR,scheduleFileName);
                                 //FileOperator.copyFileToDir(mUsbPath+USB_UPGRADE_DIR + "/" + scheduleFileName,USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR);
-                                file = new File(mUsbPath + USB_UPGRADE_DIR+"/" + scheduleFileName);
+                                if(upgradeScheduleFileName==null) return;
+                                file = new File(mUsbPath + USB_UPGRADE_DIR+"/" + upgradeScheduleFileName);
                                 try {
                                     ZipUtils.upZipFile(file,USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
 
-                                StringBuilder sb4 = new StringBuilder();
-                                scheduleFileName =USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR + "/"+ group.getGroupId()+USB_UPGRADE_SCHEDULE_SUB+USB_UPGRADE_ORGFILE_SUFFIX;
-                                try {
-                                    sb4 = FileOperator.convertStreamToString(scheduleFileName);
-                                } catch (UnsupportedEncodingException e) {
-                                    e.printStackTrace();
-                                }
+                                String scheduleDataString = getStringFromFile(USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR,scheduleFileName.replace(".GA",".config"));
 
-                                StringBuilder sb5 = new StringBuilder();
-                                sb5.append(FileOperator.hexStr2Str(sb4.toString()));
-
-                                String scheduleDataString = sb5.toString();
-                                /*
+                                RingLog.d("scheduleDataString = " + scheduleDataString);
                                 if (scheduleDataString != null) {
                                     AdListHttpResult result = new AdListHttpResult();
                                     result = gson.fromJson(scheduleDataString, AdListHttpResult.class);
-                                    List<TemplateRegion> regionList  = result.getData().getTemplate().getRegionList();
-                                    boolean needUpgradeAd = false;
-                                    for (int iii = 0; iii < regionList.size(); iii++) {
-                                        TemplateRegion region = regionList.get(iii);
-                                        Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
-                                        AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
-                                        long positionId = advertPositionVo.getadvertPosition().getId();
-                                        long positionVersion = advertPositionVo.getadvertPosition().getVersion();
-                                        if (AdvertVersion.getAdVersion(positionId) > 0) {
-                                            if (positionVersion != AdvertVersion.getAdVersion(positionId)) {
-                                                needUpgradeAd = true;
-                                            }
-                                        } else {
-                                            needUpgradeAd = true;
-                                        }
-                                        if (needUpgradeAd == true && advertPositionVo != null) {
-                                            sendMessage("开始升级广告视频", true);
-                                            List<DateScheduleVo> dateScheduleVos = advertPositionVo.getDateScheduleVos();
-                                            //mAdverPosition = advertPositionVo.getadvertPosition();
-                                            int size = dateScheduleVos.size();
-                                            //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, dateScheduleVos));
-                                            for (int ii = 0; ii < size; ii++) {
-                                                DateScheduleVo dateSchedueVo = dateScheduleVos.get(ii);
-                                                DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
-                                                RingLog.d("getAdList Schedue start date = " + dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
-                                                List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
-                                                for (int jj = 0; jj < TimeSchedueVos.size(); jj++) {
-                                                    TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(jj);
-                                                    TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
-                                                    RingLog.d("getAdList Schedue start time = " + timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
-                                                    List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
-                                                    for (int k = 0; k < packageAdverts.size(); k++) {
-                                                        AdvertVo advertVo = packageAdverts.get(k);
-                                                        Advert advert = advertVo.getAdvert();
-                                                        RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
-
-                                                        List<AdvertFile> fileList = advertVo.getFileList();
-                                                        for (int l = 0; l < fileList.size(); l++) {
-                                                            AdvertFile advertFile = fileList.get(l);
-                                                            int index = advertFile.getFilePath().lastIndexOf(".");
-                                                            String suffix = advertFile.getFilePath().substring(index);
-                                                            String destFile = FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + advertFile.getFileMd5() + suffix;
-                                                            index = advertFile.getFilePath().lastIndexOf("/");
-                                                            String srcFile = USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR + "/" + advertFile.getFilePath().substring(index + 1);
-                                                            FileOperator.moveFile(srcFile, destFile);
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                    sendMessage("开始升级广告视频", true);
+                                    List<PositionVer> versionList = new ArrayList<>();
+                                    if(result!=null) {
+                                        List<AdvertScheduleVo>  advertScheduleList = result.getData().getAdvertSchedules();
+                                        for(int ii=0;ii<advertScheduleList.size();ii++ ) {
+                                            int version  = advertScheduleList.get(ii).getAdvertSchedule().getVersion();
+                                            Long posId =  advertScheduleList.get(ii).getAdvertSchedule().getTerminalGroupId();
+                                            PositionVer posVer = new PositionVer();
+                                            posVer.setAdvertPositionId(posId);
+                                            posVer.setVersion(version);
+                                            versionList.add(posVer);
                                         }
                                     }
-                                    updateAdList(result);
+
+                                    updateAdList(result,versionList);
+                                    DownloadAdFiles(result,true,versionList);
                                     sendMessage("广告视频升级完成",true);
+                                    /*
+                                    else {
+                                        sendMessage("广告视频已经是最新版本，无需更新",true);
+                                    }
+                                    */
                                 }
-                                */
                                 //检查apk升级
                                 if(FileOperator.fileIsExists(mUsbPath+USB_UPGRADE_DIR+ "/" + USB_UPGRADE_APP_ZIPFILE)){
                                     FileOperator.copyFileToDir(mUsbPath+USB_UPGRADE_DIR + "/" + USB_UPGRADE_APP_ZIPFILE,USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR);
@@ -575,6 +554,21 @@ public class UpgradeService extends Service {
                         //sendEmptyMessageDelayed(UPLOAD_LOGCAT_CMD,UPLOAD_LOGCAT_INTERVAL_TIME);
                     }
                     break;
+                case PRINT_INFO_CMD:
+                    if(mPlayListManager!=null) mPlayListManager.printInfo();
+                    mHandler.removeMessages(PRINT_INFO_CMD);
+                    mHandler.sendEmptyMessageDelayed(PRINT_INFO_CMD, 1000*5);
+                    break;
+                case CHECK_PLAYER_ACTIVITY_CMD:
+                    checkPlayerActivity();
+                    mHandler.removeMessages(CHECK_PLAYER_ACTIVITY_CMD);
+                    mHandler.sendEmptyMessageDelayed(CHECK_PLAYER_ACTIVITY_CMD, 1000*5);
+                    break;
+                case REPORT_TRAFFIC_CMD:
+                    reportTraffic();
+                    mHandler.removeMessages(REPORT_TRAFFIC_CMD);
+                    mHandler.sendEmptyMessageDelayed(REPORT_TRAFFIC_CMD,10*60*1000);
+                    break;
                 default:
                     break;
             }
@@ -608,6 +602,7 @@ public class UpgradeService extends Service {
         appUpgrade(getApplicationContext());
         getToken(false);
 
+        mHandler.sendEmptyMessageDelayed(REPORT_TRAFFIC_CMD,10*60*1000);
         //mHandler.sendEmptyMessageDelayed(SHOW_TIME_INFO_CMD,3*1000);
         return super.onStartCommand(intent, flags, startId);
     }
@@ -615,6 +610,7 @@ public class UpgradeService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        CommonUtil.reboot(getApplicationContext());
     }
 
     private void LogcatDumpStart(){
@@ -626,6 +622,7 @@ public class UpgradeService extends Service {
     private void LogcatDumpStop(){
         mHandler.removeMessages(UPLOAD_LOGCAT_CMD);
         if(logHelper!=null) logHelper.stop();
+        mHandler.removeMessages(PRINT_INFO_CMD);
     }
     private void appUpgrade (Context context) {
         String signed="";
@@ -772,6 +769,44 @@ public class UpgradeService extends Service {
 
     }
 
+    private void reportTraffic (){
+        final long rxTotal = getTrafficList();
+        long rxCached = DevRing.cacheManager().spCache("TrafficFlow").getLong("value",0L);
+        final long rx = rxTotal - rxCached;
+        EventParameter parameter = new EventParameter();
+        if (mDeviceId.isEmpty()) {
+            mDeviceId = SystemInfoManager.getDeviceId(getApplicationContext());
+        }
+        parameter.setSn(mDeviceId.toUpperCase());
+        parameter.setSessionid(CommonUtil.getRandomString(50));
+        parameter.setTimestamp(System.currentTimeMillis());
+        parameter.setToken(mToken);
+        parameter.setApp(Utils.getAppPackageName(getApplicationContext()));
+        parameter.setEvent("networkFlow");
+        parameter.setEventtype(4000);
+
+        parameter.setMac(CommonUtil.getEthernetMac());
+        NetworkFlow info = new NetworkFlow();
+        info.setNetworkFlow(rx);
+
+        parameter.setEventData(info);
+        parameter.setTimestamp(System.currentTimeMillis());
+        AdvertModel mIModel = new AdvertModel();
+
+        DevRing.httpManager().commonRequest(mIModel.reportEvent(parameter), new CommonObserver<ReportInfoResult>() {
+            @Override
+            public void onResult(ReportInfoResult result) {
+                RingLog.d("reportTraffic ok  rx = "+ rx + " status = " + result.getStatus());
+                DevRing.cacheManager().spCache("TrafficFlow").put("value",rxTotal);
+            }
+
+            @Override
+            public void onError(int i, String s) {
+                RingLog.d("reportTraffic error i = " + i + "msg = " + s);
+
+            }
+        }, null);
+    }
 
     public void getAppTrafficList(){
         //获取所有的安装在手机上的应用软件的信息，并且获取这些软件里面的权限信息
@@ -797,6 +832,21 @@ public class UpgradeService extends Service {
 
                     }
                 }
+            }
+        }
+    }
+
+    private long getTrafficList(){
+        long rx = TrafficStats.getMobileRxBytes();
+        return rx;
+    }
+
+    private void checkPlayerActivity(){
+        if(mPlayListManager!=null) {
+            if(!mPlayListManager.isPlayerActivit()){
+                Intent it = new Intent(getApplicationContext(), MediaPlayerActivity.class);
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(it);
             }
         }
     }
@@ -1007,6 +1057,11 @@ public class UpgradeService extends Service {
                                     if(mPlayListManager!=null) mPlayListManager.setOnRecorderStart();
                                 }else if(dataItem.getEventID().equals("1013")){/*上传日志*/
                                     LogcatDumpStart();
+                                    if(mPlayListManager!=null){
+                                        mPlayListManager.printInfo();
+                                    }
+                                    mHandler.removeMessages(PRINT_INFO_CMD);
+                                    mHandler.sendEmptyMessageDelayed(PRINT_INFO_CMD, 1000*5);
                                 }
                             }
                         }
@@ -1122,95 +1177,40 @@ public class UpgradeService extends Service {
                 advertData.setTemplateVo(templateList);
                 mAdDataList.add(advertData);
             }
-            /*
-            for(int ii=0;ii < regionList.size();ii++) {
-                List<PlayingAdvert> adurls = new ArrayList<PlayingAdvert>();
-                adurls.clear();
-                TemplateRegion region = regionList.get(ii);
-                if(result.getData().getRelationMap().isEmpty()) return;
-                if(result.getData().getAdvertPositionMap().isEmpty()) return;
-                Long advertPositionId = result.getData().getRelationMap().get(region.getIdent());
-                AdvertPositionVo advertPositionVo = result.getData().getAdvertPositionMap().get(advertPositionId);
-                AdvertPosition adverPosition =  advertPositionVo.getadvertPosition();
-                if (advertPositionVo != null) {
-                    List<DateScheduleVo> dateScheduleVos = advertPositionVo.getDateScheduleVos();
-                    mAdverPositions.add(adverPosition);
-                    int size = dateScheduleVos.size();
-                    //EventBus.getDefault().post(new AppEvent(AppEvent.ADVERT_LIST_UPDATE_EVENT, dateScheduleVos));
-                    for (int i = 0; i < size; i++) {
-                        DateScheduleVo dateSchedueVo = dateScheduleVos.get(i);
-                        DateSchedule dateSchedue = dateSchedueVo.getDateSchedule();
-                        RingLog.d("getAdList Schedue start date = " + dateSchedue.getStartDate() + "end date=" + dateSchedue.getEndDate());
-                        List<TimeScheduleVo> TimeSchedueVos = dateSchedueVo.getTimeScheduleVos();
-                        for (int j = 0; j < TimeSchedueVos.size(); j++) {
-                            TimeScheduleVo timeScheduleVo = TimeSchedueVos.get(j);
-                            TimeSchedule timeSchedule = timeScheduleVo.getTimeSchedule();
-                            RingLog.d("getAdList Schedue start time = " + timeSchedule.getStartTime() + "end time=" + timeSchedule.getEndTime());
-                            List<AdvertVo> packageAdverts = timeScheduleVo.getPackageAdverts();
-                            for (int k = 0; k < packageAdverts.size(); k++) {
-                                AdvertVo advertVo = packageAdverts.get(k);
-                                Advert advert = advertVo.getAdvert();
-                                Long vType = advert.getVtype();
-                                RingLog.d("getAdList advert name = " + advert.getName() + "advert description :" + advert.getDescription());
-                                List<AdvertFile> fileList = advertVo.getFileList();
-                                for (int l = 0; l < fileList.size(); l++) {
-                                    AdvertFile advertFile = fileList.get(l);
-                                    DownloadInfo downloadInfo = new DownloadInfo();
-                                    downloadInfo.setId(advertFile.getId());
-                                    String encurl = advertFile.getRemark1();
-                                    if(encurl!=null && !encurl.isEmpty()){
-                                        downloadInfo.setUrl(encurl);
-                                        downloadInfo.setFileMd5(advertFile.getRemark2());
-                                    }else {
-                                        downloadInfo.setUrl(advertFile.getFilePath());
-                                        downloadInfo.setFileMd5(advertFile.getFileMd5());
-                                    }
-                                    downloadInfo.setName(advertFile.getName());
-                                    downloadInfo.setStatus(DownloadInfo.STATUS_NOT_DOWNLOAD);
-                                    downloadList.add(downloadInfo);
-
-
-                                    PlayingAdvert item = new PlayingAdvert();
-                                    item.setPath("");
-                                    if(encurl!=null && !encurl.isEmpty()){
-                                        item.setMd5(advertFile.getRemark2());
-                                        item.setEncrypt(true);
-                                    }else {
-                                        item.setMd5(advertFile.getFileMd5());
-                                        item.setEncrypt(false);
-                                    }
-                                    item.setAdvertid(advertFile.getAdvertid());
-                                    item.setAdPositionID(dateSchedueVo.getDateSchedule().getAdvertPositionId());
-                                    item.setTemplateid(region.getTemplateid());
-                                    item.setStartDate(dateSchedueVo.getDateSchedule().getStartDate());
-                                    item.setEndDate(dateSchedueVo.getDateSchedule().getEndDate());
-                                    item.setStartTime(timeScheduleVo.getTimeSchedule().getStartTime() + ":00");
-                                    item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime() + ":00");
-                                    item.setDuration(advertFile.getVideoDuration());
-                                    item.setvType(vType);
-                                    adurls.add(item);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                mAdMap.put(adverPosition.getId(),adurls);
-
-            }
-            */
-
-            if(downloadList.size()>0){
+    }
+    private void copyAdListFromUsb(List<PositionVer> versionlist){
+        int size = downloadList.size();
+        for(int i=0;i<size;i++) {
+            DownloadInfo item = downloadList.get(i);
+            int index = item.getUrl().lastIndexOf("/");
+            String destFile = FileUtil.getExternalCacheDir(getApplicationContext()) + "/" + item.getUrl().substring(index + 1);
+            String srcFile = USB_UPGRADE_DEST_DIR + USB_UPGRADE_DIR + "/" + item.getUrl().substring(index + 1);
+            FileOperator.moveFile(srcFile, destFile);
+            item.setStatus(DownloadInfo.STATUS_COMPLETE);
+            updatePlayListFilePath(destFile,item.getFileMd5());
+        }
+        mPlayListManager.updatePlayList(mAdDataList);
+        mPlayListManager.saveAdvertVersion(mAdverPositions);
+        if(versionlist!=null && versionlist.size()>0) {
+            ReportScheduleVer(mTemplateId, versionlist);
+        }
+    }
+    private void DownloadAdFiles(AdListHttpResult result,boolean copyFromUsb,List<PositionVer> versionlist){
+        if(downloadList.size()>0){
+            updateScheduleTimesCache(result);
+            if(copyFromUsb){
+                copyAdListFromUsb(versionlist);
+            }else {
                 downloadAdList();
-                //updateScheduleTimesCache(result);
-            }else{
-                //updateScheduleTimesCache(result);
-                mPlayListManager.updatePlayList(mAdDataList);
-                if(versionlist!=null && versionlist.size()>0) {
-                    ReportScheduleVer(mTemplateId, versionlist);
-                }
             }
+        }else{
+            updateScheduleTimesCache(result);
 
+            mPlayListManager.updatePlayList(mAdDataList);
+            if(versionlist!=null && versionlist.size()>0) {
+                ReportScheduleVer(mTemplateId, versionlist);
+            }
+        }
     }
 
     private void updatePlayListFilePath(String path,String md5){
@@ -1266,6 +1266,7 @@ public class UpgradeService extends Service {
                 downloadList.clear();
                 if(result.getStatus() ==0 ) {
                     updateAdList(result,versionList);
+                    DownloadAdFiles(result,false,versionList);
                 }
             }
 
@@ -1290,11 +1291,15 @@ public class UpgradeService extends Service {
         DevRing.httpManager().commonRequest(IModel.getAdvertInfo(parameter), new CommonObserver<AdvertInfoResult>() {
             @Override
             public void onResult(AdvertInfoResult result) {
-                if (result!=null && result.getStatus() == 0 && result.getData() != null) {
-                    if(result.getData().getWeather()==1){/*需要显示天气信息*/
-                        getAdvertWeather(token);
-                    }
-                    mPlayListManager.updateInfo(result.getData());
+                if (result!=null && result.getStatus() == 0){
+                        if(result.getData() != null) {
+                            RingLog.d("getAdvertInfo data Weather = " + result.getData().getWeather());
+                            RingLog.d("getAdvertInfo data vtime = " + result.getData().getvTime());
+                            if (result.getData().getWeather() == 1) {/*需要显示天气信息*/
+                                getAdvertWeather(token);
+                            }
+                        }
+                        mPlayListManager.updateInfo(result.getData());
                 }
             }
             @Override

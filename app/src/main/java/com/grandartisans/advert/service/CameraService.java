@@ -10,6 +10,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.text.format.Time;
 import android.util.Log;
+import android.view.Surface;
 
 import com.alibaba.sdk.android.oss.ClientConfiguration;
 import com.alibaba.sdk.android.oss.ClientException;
@@ -21,34 +22,33 @@ import com.alibaba.sdk.android.oss.callback.OSSProgressCallback;
 import com.alibaba.sdk.android.oss.common.auth.OSSCredentialProvider;
 import com.alibaba.sdk.android.oss.common.auth.OSSPlainTextAKSKCredentialProvider;
 import com.alibaba.sdk.android.oss.internal.OSSAsyncTask;
-import com.alibaba.sdk.android.oss.model.CompleteMultipartUploadResult;
 import com.alibaba.sdk.android.oss.model.OSSRequest;
 import com.alibaba.sdk.android.oss.model.ObjectMetadata;
 import com.alibaba.sdk.android.oss.model.PutObjectRequest;
 import com.alibaba.sdk.android.oss.model.PutObjectResult;
-import com.github.faucamp.simplertmp.RtmpHandler;
 import com.grandartisans.advert.activity.MediaPlayerActivity;
 import com.grandartisans.advert.interfaces.RecorderEventListener;
+import com.grandartisans.advert.recoder.RecorderManager;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.ljy.devring.other.RingLog;
 
-import net.ossrs.yasea.SrsCameraView;
-import net.ossrs.yasea.SrsPublisher;
-import net.ossrs.yasea.SrsRecordHandler;
-
 import java.io.File;
-import java.io.IOException;
-import java.net.SocketException;
-import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class CameraService extends Service implements SrsRecordHandler.SrsRecordListener,RtmpHandler.RtmpListener {
-    private SrsPublisher mPublisher;
+import VideoHandle.EpEditor;
+import VideoHandle.EpVideo;
+import VideoHandle.OnEditorListener;
+
+public class CameraService extends Service  {
+    private RecorderManager mRecorderManager = null;
     private Camera mCamera;
     private Timer mTimer;
     private TimerTask mTimerTask;
@@ -61,8 +61,8 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
 
     private int mTimerCount = 0;
 
-    private boolean isRecord = false;
-    private boolean recordHasFinished = false;
+    private boolean isRecording = false;
+    private boolean isRecordPaused  = false;
     private boolean isUploading = false;
     private boolean uploadSuccess = false;
     public static boolean cameraNeedStop = false;
@@ -74,6 +74,9 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     private static final String ACCESS_KEY_SECRET = "7aZBMS42QqguHTF5cq5uPD7tle8dK3";
     private static final String BUCKET_NAME = "gadsp";
     private static final String OBJECT_KEY_DIR = "advert/record/";
+
+    private List<String> recordList = null;
+    private int recordSegment = 0;
 
     private static final int START_RTMP = 100000;
     //private static final int START_RECORD = 100001;
@@ -90,9 +93,6 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     private Handler mHandler = new Handler() {
         public void handleMessage(Message paramMessage) {
             switch (paramMessage.what) {
-                case START_RTMP:
-                    startRtmp();
-                    break;
                     /*
                 case START_RECORD:
                     startCameraRecord();
@@ -100,9 +100,6 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
                     */
                 case UPLOAD_FILE:
                     uploadRecord();
-                    break;
-                case RESTART_RECORD:
-                    restartCameraRecord();
                     break;
             }
             super.handleMessage(paramMessage);
@@ -125,126 +122,15 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         handler = new Handler();
+        recordList = new LinkedList<String>();
+        mRecorderManager = mRecorderManager = RecorderManager.getInstance(this);
         if(CommonUtil.haveUdisk()){
             recordPath = "/storage/udisk0/";
         }else {
             recordPath = getApplicationContext().getExternalFilesDir(null).getPath();
+            removeOlderFiles(recordPath,false);
         }
         return super.onStartCommand(intent, flags, startId);
-    }
-
-    @Override
-    public void onRecordPause() {
-        RingLog.d(TAG, "Record paused");
-        mTimer.cancel();
-        isRecord = false;
-    }
-
-    @Override
-    public void onRecordResume() {
-        RingLog.d(TAG, "Record resumed");
-        isRecord = true;
-        startPublishRecordTimer();
-    }
-
-    @Override
-    public void onRecordStarted(String msg) {
-        RingLog.d(TAG, "Record start");
-        // 打开计时器
-        isRecord = true;
-        startPublishRecordTimer();
-        if(mRecorderEventListener!=null)
-            mRecorderEventListener.onRecordStart();
-    }
-
-
-    @Override
-    public void onRecordFinished(String msg) {
-        RingLog.d(TAG, "Record finished");
-        isRecord = false;
-        mTimerCount = 0;
-        if (cameraNeedStop){
-            RingLog.d(TAG, "Record is forced to stop");
-            destroyTimer();
-            cameraNeedStop = false;
-        } else {
-            RingLog.d(TAG, "Now stop record, upload it to server");
-            if(CommonUtil.haveUdisk()) {
-                mHandler.sendEmptyMessageDelayed(RESTART_RECORD,3*1000);
-            }else {
-                destroyTimer();
-                recordHasFinished = true;
-                mHandler.sendEmptyMessage(UPLOAD_FILE);
-            }
-        }
-        if (MediaPlayerActivity.firstStartRecord) {
-            MediaPlayerActivity.firstStartRecord = false;
-        }
-    }
-
-    @Override
-    public void onRecordIOException(IOException e) {
-        e.printStackTrace();
-    }
-
-    @Override
-    public void onRecordIllegalArgumentException(IllegalArgumentException e) {
-        e.printStackTrace();
-    }
-
-    @Override
-    public void onRtmpConnecting(String msg) {
-        RingLog.d(TAG, "Rtmp connecting");
-    }
-
-    @Override
-    public void onRtmpConnected(String msg) {
-        RingLog.d(TAG, "Rtmp connected");
-    }
-
-    @Override
-    public void onRtmpVideoStreaming() {}
-
-    @Override
-    public void onRtmpAudioStreaming() {}
-
-    @Override
-    public void onRtmpStopped() {
-        RingLog.d(TAG, "Rtmp has stopped");
-    }
-
-    @Override
-    public void onRtmpDisconnected() {
-        RingLog.d(TAG, "Rtmp has disconnected the server");
-    }
-
-    @Override
-    public void onRtmpVideoFpsChanged(double fps) {}
-
-    @Override
-    public void onRtmpVideoBitrateChanged(double bitrate) {}
-
-    @Override
-    public void onRtmpAudioBitrateChanged(double bitrate) {}
-
-    @Override
-    public void onRtmpSocketException(SocketException e) {
-        e.printStackTrace();
-    }
-
-    @Override
-    public void onRtmpIOException(IOException e) {
-        e.printStackTrace();
-    }
-
-    @Override
-    public void onRtmpIllegalArgumentException(IllegalArgumentException e) {
-        e.printStackTrace();
-    }
-
-    @Override
-    public void onRtmpIllegalStateException(IllegalStateException e) {
-        e.printStackTrace();
     }
 
     public class CamBinder extends Binder {
@@ -256,89 +142,105 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
     public void  registerListener(RecorderEventListener listener){
         if(listener!=null) mRecorderEventListener = listener;
     }
+    public int getCameraNumber(){
+        return mRecorderManager.getCameraNumber();
+    }
 
-    public void startCameraRecord(SrsPublisher publisher) {
+    public void cameraRecordStart(Surface surface) {
         RingLog.d(TAG, "Open Record Camera");
-        recordHasFinished = false;
-        if(CommonUtil.haveUdisk()) removeOlderFiles();
+        mRecorderManager.initialize();
+        recordList.clear();
+        recordSegment = 0;
+        String fileName = getRecordName(recordSegment);
+        recordList.add(fileName);
+        mRecorderManager.recordStart(surface,fileName);
+        isRecording = true;
+        mTimerCount = 0;
+        startPublishRecordTimer();
+        if(mRecorderEventListener!=null)
+            mRecorderEventListener.onRecordStart();
+    }
+
+    public void cameraRecordStop(){
+        mRecorderManager.recordStop();
+        RingLog.d(TAG, "Record finished");
+        mTimerCount = 0;
+
+        if(CommonUtil.haveUdisk()) {
+            mHandler.sendEmptyMessageDelayed(RESTART_RECORD,3*1000);
+        }else {
+            destroyTimer();
+        }
+    }
+    public void cameraRecordPause(){
+        RingLog.d(TAG, "Record paused");
+        //mTimer.cancel();
+        isRecordPaused = true;
+        mRecorderManager.recordStop();
+    }
+    public void cameraRecordResume(Surface surface){
+        mRecorderManager.initialize();
+        recordSegment ++ ;
+        String fileName = getRecordName(recordSegment);
+        recordList.add(fileName);
+        mRecorderManager.recordStart(surface,fileName);
+        isRecordPaused = false;
+    }
+
+    public boolean isRecording() {
+        return isRecording;
+    }
+
+    private String getRecordName(int segnum){
+        String fileName = "";
+        if(CommonUtil.haveUdisk()) removeOlderFiles("/storage/udisk0",true);
         deviceId = SystemInfoManager.readFromNandkey("usid");
         if (deviceId == null) {
             deviceId = "G50234001485210002";
         }
         deviceId=deviceId.toUpperCase();
-
-        mPublisher = publisher;
-        mPublisher.setRecordHandler(new SrsRecordHandler(this));
-        mCamera = mPublisher.getCamera();
-        if (mCamera != null) {
-            RingLog.d(TAG, "Camera Id is: " + mPublisher.getCamraId());
-            RingLog.d(TAG, "Start record");
-            // 开始录像
-            String fileName = "";
-            if(CommonUtil.haveUdisk()) {
-                fileName = recordPath + deviceId + getFileName() + ".mp4";
-            }else {
-                fileName = recordPath + "/" + deviceId + ".mp4";
+        if(CommonUtil.haveUdisk()) {
+            fileName = recordPath + deviceId + getFileName() +"segment_" + segnum + ".mp4";
+        }else {
+            fileName = recordPath + "/" + deviceId +"segment_" + segnum+ ".mp4";
+        }
+        return fileName;
+    }
+    private void ComposerVideo() {
+        ArrayList<EpVideo> epVideos = new ArrayList<>();
+        int size = recordList.size();
+        for(int i=0;i<size;i++) {
+            String fileName = recordList.get(i);
+            epVideos.add(new EpVideo(fileName));//视频
+        }
+        //输出选项，参数为输出文件路径(目前仅支持mp4格式输出)
+        String outFile = recordPath + "/" + deviceId + ".mp4";
+        EpEditor.OutputOption outputOption = new EpEditor.OutputOption(outFile);
+        /*
+        outputOption.setWidth(480);//输出视频宽，默认480
+        outputOption.setHeight(360);//输出视频高度,默认360
+        outputOption.frameRate = 30;//输出视频帧率,默认30
+        outputOption.bitRate = 10;//输出视频码率,默认10
+        */
+        EpEditor.mergeByLc(this,epVideos, outputOption, new OnEditorListener() {
+            @Override
+            public void onSuccess() {
+                RingLog.d(TAG, "video merge success");
+                mHandler.sendEmptyMessage(UPLOAD_FILE);
             }
-            mPublisher.startRecord(fileName);
-        }
-    }
 
-    public void restartCameraRecord() {
-        if(CommonUtil.haveUdisk()) removeOlderFiles();
-        cameraNeedStop = false;
-        if (recordHasFinished) {
-            RingLog.d(TAG, "Not need record any more");
-            return;
-        }
-        RingLog.d(TAG, "Restart record");
-        mPublisher.startCamera();
-        if (mPublisher.getCamera() != null) {
-            RingLog.d(TAG, "Restart now");
-            // 重新开始录像
-            String fileName = "";
-            if(CommonUtil.haveUdisk()) {
-                fileName = recordPath + deviceId + getFileName() + ".mp4";
-            }else {
-                fileName = recordPath + "/" + deviceId + ".mp4";
+            @Override
+            public void onFailure() {
+                RingLog.d(TAG, "video merge fail");
+                isRecording = false;
             }
-            RingLog.d(TAG, "Start record fileName = " + fileName);
-            mPublisher.startRecord(fileName);
-        }
+
+            @Override
+            public void onProgress(float progress) {
+                //这里获取处理进度
+            }
+        });
     }
-
-    public boolean getRecordStatus() {
-        return isRecord;
-    }
-
-    public boolean getFinishStatus() {
-        return recordHasFinished;
-    }
-
-    public boolean recordUploadSuccess() {
-        return uploadSuccess;
-    }
-
-    public boolean getUploadStatus() {
-        return isUploading;
-    }
-
-    public void startRtmp() {
-        RingLog.d(TAG, "Open RTMP Camera");
-        SrsCameraView cameraView = MediaPlayerActivity.mCameraView;
-        // RTMP推流状态回调
-		mPublisher.setRtmpHandler(new RtmpHandler(this));
-
-        // 切换摄像头
-        cameraView.stopCamera();
-        cameraView.setCameraId((mPublisher.getCamraId() + 1) % Camera.getNumberOfCameras());
-        cameraView.startCamera();
-
-        String rtmpUrl = RTMP_CHANNEL + "/" + deviceId;
-        RingLog.d(TAG, "The rtmp url is: " + rtmpUrl);
-        mPublisher.startPublish(rtmpUrl);
-    }
-
     private void startPublishRecordTimer() {
         destroyTimer();
         initTimer();
@@ -360,10 +262,13 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         mTimerTask = new TimerTask() {
             @Override
             public void run() {
-                if(isRecord) mTimerCount += 1;
-                if (isRecord && mTimerCount > stopTimeCount) {
+                if(isRecording && !isRecordPaused){
+                    mTimerCount += 1;
+                }
+                if (isRecording && mTimerCount > stopTimeCount) {
                     // 已录制一分钟 停止录像
-                    mPublisher.stopRecord();
+                    cameraRecordStop();
+                    ComposerVideo();
                     return;
                 }
             }
@@ -425,6 +330,7 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
                 Log.d(TAG,"uploadSuccess");
                 if(mRecorderEventListener!=null) mRecorderEventListener.onRecordFinished(objectKey);
                 uploadSuccess = true;
+                isRecording = false;
             }
 
             @Override
@@ -503,13 +409,18 @@ public class CameraService extends Service implements SrsRecordHandler.SrsRecord
         String str_time = time.format("%Y%m%d%H%M%S");
         return str_time;
     }
-    private void removeOlderFiles(){
-        File diskFile = new File("/storage/udisk0");
+    private void removeOlderFiles(String filePath,boolean  byTime){
+        //File diskFile = new File("/storage/udisk0");
+        File diskFile = new File(filePath);
         if(diskFile.exists()){
             File[] files = diskFile.listFiles();
             for (File file : files) {
                 if(file.getAbsolutePath().contains(".mp4")) {
-                    if(file.lastModified() < CommonUtil.getPastDate(7)){
+                    if(byTime) {
+                        if (file.lastModified() < CommonUtil.getPastDate(7)) {
+                            file.delete();
+                        }
+                    }else {
                         file.delete();
                     }
                 }

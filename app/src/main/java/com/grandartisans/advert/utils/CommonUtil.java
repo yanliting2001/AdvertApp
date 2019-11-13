@@ -188,6 +188,42 @@ public class CommonUtil {
         return resultBegin > 0 && resultEnd < 0;
     }
 
+    /**
+     * 判断当前日期是否在给定的两个日期之间
+     * @param beginDate 开始日期
+     * @param beginTime 开始时间
+     *@param endDate 结束日期
+     *@param endTime 结束时间
+     */
+    public static boolean compareTimeState(String beginDate,String beginTime, String endDate,String endTime) {
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        DateFormat df1 = new SimpleDateFormat("yyyy-MM-dd");
+        Calendar c = Calendar.getInstance();
+        Calendar c1 = Calendar.getInstance();
+        Calendar c2 = Calendar.getInstance();
+        try {
+            c.setTimeInMillis(System.currentTimeMillis());
+            c1.setTime(df.parse(beginDate + " " + "00:00:01"));
+            c2.setTime(df.parse(endDate + " " + "23:59:59"));
+        } catch (java.text.ParseException e) {
+            return false;
+        }
+        int resultBegin = c.compareTo(c1);
+        int resultEnd = c.compareTo(c2);
+        if(resultBegin > 0 && resultEnd < 0){
+            String currentDate=df1.format(System.currentTimeMillis());//yyyy-MM-dd
+            try {
+                c.setTimeInMillis(System.currentTimeMillis());
+                c1.setTime(df.parse(currentDate + " " + beginTime));
+                c2.setTime(df.parse(currentDate + " " + endTime));
+            }catch (java.text.ParseException e) {
+                return false;
+            }
+            resultBegin = c.compareTo(c1);
+            resultEnd = c.compareTo(c2);
+            return resultBegin > 0 && resultEnd < 0;
+        }else return false;
+    }
     public static Long getPastDate(int past) {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.DAY_OF_YEAR, calendar.get(Calendar.DAY_OF_YEAR) - past);

@@ -225,10 +225,10 @@ public class AdPlayListManager {
             Log.i(TAG,"play advertitem   = " +  playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime()+playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime());
             if(playAdvertItem.getPath()!=null && !playAdvertItem.getPath().isEmpty()) {
                 if(playAdvertItem.getStartDate()!=null && !playAdvertItem.getStartDate().isEmpty()) {
-                    if (CommonUtil.compareDateState(playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime(), playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime())) {
+                    if (CommonUtil.compareTimeState(playAdvertItem.getStartDate(),playAdvertItem.getStartTime(), playAdvertItem.getEndDate(),playAdvertItem.getEndTime())) {
                         url = playAdvertItem.getPath();
                         break;
-                    } else if (CommonUtil.compareDateState("2015-01-01 00:00:00", "2016-12-30 23:59:59")) {
+                    } else if (CommonUtil.compareTimeState("2015-01-01", "00:00:00", "2016-12-30","23:59:59")) {
                         url = playAdvertItem.getPath();
                         break;
                     } else {
@@ -307,5 +307,12 @@ public class AdPlayListManager {
     public void setOnRecorderStart(){
         setPlayListUpdate("1");
         if(mAdListEventListener!=null) mAdListEventListener.onRecoderStart();
+    }
+    public void printInfo(){
+        if(mAdListEventListener!=null) mAdListEventListener.onPrintInfo();
+    }
+    public boolean isPlayerActivit(){
+        if(mAdListEventListener!=null) return true;
+        else return false;
     }
 }

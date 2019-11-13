@@ -25,7 +25,7 @@ public class AdvertInfoData<T> {
     /**
      * 时间|0否1是
      */
-    private Long vTime;
+    private Long vtime;
 
     /**
      * 天气|0否1是
@@ -152,11 +152,11 @@ public class AdvertInfoData<T> {
     }
 
     public Long getvTime() {
-        return vTime;
+        return vtime;
     }
 
     public void setvTime(Long vTime) {
-        this.vTime = vTime;
+        this.vtime = vTime;
     }
 
     public Long getWeather() {

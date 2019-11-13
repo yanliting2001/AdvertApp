@@ -22,9 +22,9 @@ import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -37,6 +37,7 @@ import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -56,6 +57,7 @@ import com.grandartisans.advert.interfaces.ElevatorDoorEventListener;
 import com.grandartisans.advert.interfaces.ElevatorEventListener;
 import com.grandartisans.advert.interfaces.RecorderEventListener;
 import com.grandartisans.advert.model.AdvertModel;
+import com.grandartisans.advert.model.PlayerCmd;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.model.entity.event.AppEvent;
 import com.grandartisans.advert.model.entity.post.EventParameter;
@@ -69,6 +71,7 @@ import com.grandartisans.advert.model.entity.res.ReportInfoResult;
 import com.grandartisans.advert.model.entity.res.TemplateReginVo;
 import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TerminalAdvertPackageVo;
+import com.grandartisans.advert.recoder.RecorderManager;
 import com.grandartisans.advert.server.M3u8Server;
 import com.grandartisans.advert.service.CameraService;
 import com.grandartisans.advert.service.NetworkService;
@@ -83,17 +86,15 @@ import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
 import com.grandartisans.advert.utils.ViewUtils;
 import com.grandartisans.advert.view.MarqueeTextView;
-import com.grandartisans.advert.view.MySurfaceView;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.http.support.observer.CommonObserver;
 import com.ljy.devring.other.RingLog;
 import com.ljy.devring.util.FileUtil;
+import com.pili.pldroid.player.AVOptions;
+import com.pili.pldroid.player.PLMediaPlayer;
 import com.prj.utils.PrjSettingsManager;
 import com.westone.cryptoSdk.Api;
 
-import net.ossrs.yasea.SrsCameraView;
-import net.ossrs.yasea.SrsEncodeHandler;
-import net.ossrs.yasea.SrsPublisher;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -101,10 +102,12 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import gartisans.hardware.pico.PicoClient;
 
-public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback,SrsEncodeHandler.SrsEncodeListener {
+public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback{
 	private final String TAG = "MediaPlayerActivity";
-	private MediaPlayer mMediaPlayer;
-	private MySurfaceView surface;
+	private PLMediaPlayer mMediaPlayer;
+	private SurfaceView surface;
+	private SurfaceView surface_record;
+	private SurfaceHolder surfaceHolder_record;
 	private ImageView mImageMain ;
 	private SurfaceHolder surfaceHolder;
     private RelativeLayout relativeLayout;
@@ -165,6 +168,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int UPDATE_TIME_INFO_CMD = 100030;
 	private final int HIDE_UGRENT_INFO_CMD = 100031;
 
+	private final int AD_PLAYER_CMD = 100032;
+    private final int CHECK_PLAYER_START_CMD = 100033;
+	private final int RECORDER_PAUSE_CMD = 100034;
+
+	private final int RECORDER_FINISHED_CMD = 100035;
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
@@ -175,12 +183,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	static final int PLAYER_STATE_RELEASED = 5;
 	private int mPlayState = PLAYER_STATE_INIT;
 
-	public static SrsCameraView mCameraView;
-	public static SrsPublisher mPublisher;
 	private CameraService mCameraService;
-	private NetworkService mNetworkService;
 	private ServiceConnection mCamServiceConn;
-	private ServiceConnection mNetServiceConn;
 	private float mInitZ = 0;
 	private ElevatorStatusManager mElevatorStatusManager;
 	private ElevatorDoorManager mElevatorDoorManager=null;
@@ -190,9 +194,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private int mIntentId = 0;
 
 	private boolean  activate_started = false;
-	private boolean IsCameraServiceOn = false;
-	private boolean IsNetworkServiceOn = false;
-	public static boolean firstStartRecord = false;
 
 
 	AdPlayListManager mPlayListManager = null;
@@ -203,14 +204,36 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private Dialog mUrgentInfoDialog = null;
 
 
-	private Long mStartPlayTime ;
-	private Long mPausePlayTime;
-	private int mPlayingAdDuration;
-	private Long mPlayingAdType;
+	private Long mStartPlayTime = 0L ;
+	private Long mPausePlayTime=0L;
+	private Long mPlayedTime = 0L;
+	private int mPlayingAdDuration=0;
+	private Long mPlayingAdType = 2L;
 
 	private boolean mContinuePlayWhenScreenOff = false;
 
 	private  Api encApi=null;
+	private Handler mPlayerHandler = new Handler() {
+		public void handleMessage(Message paramMessage) {
+			switch (paramMessage.what) {
+				case AD_PLAYER_CMD:
+					PlayerCmd playerCmd = (PlayerCmd) paramMessage.obj;
+					processPlayerCmd(playerCmd.getCmd(), playerCmd.getUrl());
+					break;
+                case CHECK_PLAYER_START_CMD:
+                    if(getPlayerState()==PLAYER_STATE_PREPARING){
+                        onVideoPlayCompleted(true);
+                    }
+                    break;
+				case RECORDER_PAUSE_CMD:
+					mCameraService.cameraRecordPause();
+					break;
+				case RECORDER_FINISHED_CMD:
+					mCameraService.cameraRecordStop();
+					break;
+			}
+		}
+	};
 
 	private Handler mHandler = new Handler()
 	{
@@ -237,16 +260,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				case SET_POWER_ALARM_CMD:
 					SetPowerAlarm();
 					break;
-				case START_PUSH_CMD:
-					startPush();
-					break;
 				case STOP_PUSH_CMD:
                     break;
 				case START_REPORT_PLAYSTATUS_CMD:
 					ReportPlayStatus();
 					break;
 				case START_SERVICE_CMD:
-					initService();
+					initCameraService();
 					break;
 				case SET_LIFT_STOP_CMD:
 					//setLiftState(LIFT_STATE_STOP);
@@ -365,16 +385,26 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}
 	};
 
-	private void onPlayerCmd(String cmd,String url){
-		Log.i(TAG,"onPlayerCmd cmd = " + cmd + "player state = " + getPlayerState());
+	private void onPlayerCmd(String cmd,String url) {
+		PlayerCmd playerCmd = new PlayerCmd();
+		playerCmd.setCmd(cmd);
+		playerCmd.setUrl(url);
+		Message msg = new Message();
+		msg.what = AD_PLAYER_CMD;
+		msg.obj = playerCmd;
+		mPlayerHandler.sendMessage(msg);
+	}
+	private void processPlayerCmd(String cmd,String url){
+		Log.d(TAG,"processPlayerCmd cmd:" + cmd + "PlayerState :"  + getPlayerState());
 		if(cmd.equals("reset")){
-			if(getPlayerState()==PLAYER_STATE_PLAYING){
+			if(getPlayerState()==PLAYER_STATE_PLAYING
+					||getPlayerState()==PLAYER_STATE_PAUSED){
 				PlayerStop();
 			}
 			PlayerRelease();
 			initFirstPlayer();
 		}else if(cmd.equals("source")){
-			if(getPlayerState()==PLAYER_STATE_INIT) {
+			if(getPlayerState()==PLAYER_STATE_INIT||getPlayerState()==PLAYER_STATE_STOPED) {
 				setDataSource(url);
 			}
 		}
@@ -420,6 +450,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 	private void PlayerPause(){
 		if(mMediaPlayer!=null) {
+			Log.d(TAG,"onPlayer Pause ");
 			mMediaPlayer.pause();
 			setPlayerState(PLAYER_STATE_PAUSED);
 		}
@@ -427,6 +458,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void PlayerResume(){
 		if(mMediaPlayer!=null) {
 			mMediaPlayer.start();
+			Log.d(TAG,"onPlayer Resume isPlaying = " + mMediaPlayer.isPlaying() + "position = " + mMediaPlayer.getCurrentPosition() + "duration = " + mMediaPlayer.getDuration());
 			setPlayerState(PLAYER_STATE_PLAYING);
 		}
 	}
@@ -516,16 +548,17 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private void initView(){
         relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
-		surface = (MySurfaceView) findViewById(R.id.surface);
+		surface = (SurfaceView) findViewById(R.id.surface);
 		mImageMain =(ImageView)findViewById(R.id.image_main);
 		mImageMain.setVisibility(View.INVISIBLE);
+		surface_record = (SurfaceView) findViewById(R.id.surfaceview_record);
+		surfaceHolder_record = surface_record.getHolder();
 
 		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
 		surfaceHolder.addCallback(this);
-		surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+        surfaceHolder.setFormat(PixelFormat.RGBX_8888);
+		//surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
-		mCameraView = (SrsCameraView) findViewById(R.id.glsurfaceview_camera);
-		mCameraView.setVisibility(View.GONE);
 
 
 		initAdView();
@@ -541,7 +574,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		textViewTempCode = (TextView) findViewById(R.id.tv_temperature_code);
 
 		AdvertInfoData data = mPlayListManager.getAdvertInfo();
-		if(data!=null) showAdvertInfo(data);
+		showAdvertInfo(data);
 		AdvertWeatherData weatherData = mPlayListManager.getWeatherInfo();
 		if(weatherData!=null) setWeatherInfo(weatherData);
 	}
@@ -549,28 +582,24 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	 * 初始化播放首段视频的player
 	 */
 	private void initFirstPlayer() {
-		mMediaPlayer = new MediaPlayer();
-		mMediaPlayer.reset();
-		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+		mMediaPlayer = new PLMediaPlayer(this);
+		//mMediaPlayer.reset();
+		//mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mMediaPlayer.setDisplay(surfaceHolder);
 		mMediaPlayer
-				.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+				.setOnCompletionListener(new PLMediaPlayer.OnCompletionListener() {
 					@Override
-					public void onCompletion(MediaPlayer mp) {
-						onVideoPlayCompleted(true);
+					public void onCompletion(PLMediaPlayer mp) {
+						//onVideoPlayCompleted(true);
 					}
 				});
-		mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
-			@Override public void onPrepared(MediaPlayer mp) {
-
+		mMediaPlayer.setOnPreparedListener(new PLMediaPlayer.OnPreparedListener(){
+			@Override public void onPrepared(PLMediaPlayer mp,int preparedTime) {
+                mPlayerHandler.removeMessages(CHECK_PLAYER_START_CMD);
                 Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight() + "screenStatus = " + getScreenStatus());
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-                mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
+                //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
 				onPlayerCmd("start","");
-                if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus()&&!CommonUtil.haveUdisk()) {
-                    RingLog.d(TAG, "Player is resumed, now resume record");
-                    mPublisher.resumeRecord();
-                }
                 if(!mContinuePlayWhenScreenOff) {
 					if (getScreenStatus() == 0) {
 						onPlayerCmd("pause","");
@@ -579,19 +608,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 		});
 
-		mMediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener(){
-		    @Override public boolean onError(MediaPlayer mp,int what, int extra)
+		mMediaPlayer.setOnErrorListener(new PLMediaPlayer.OnErrorListener(){
+		    @Override public boolean onError(PLMediaPlayer mp,int errorcode)
             {
-                Log.d(TAG, "OnError - Error code: " + what + " Extra code: " + extra);
+                Log.d(TAG, "OnError - Error code: " + errorcode );
 				//onVideoPlayCompleted(false);
                 return false;
             }
 
         });
 
-		mMediaPlayer.setOnVideoSizeChangedListener(new MediaPlayer.OnVideoSizeChangedListener(){
-			@Override public void onVideoSizeChanged(MediaPlayer mp,int width,int height) {
+		mMediaPlayer.setOnVideoSizeChangedListener(new PLMediaPlayer.OnVideoSizeChangedListener(){
+			@Override public void onVideoSizeChanged(PLMediaPlayer mp,int width,int height,int videoSar, int videoDen) {
 				Log.d(TAG, "setOnVideoSizeChangedListener  width: " + width + "height: " + height);
+				//surfaceHolder.setFixedSize(width,height);
 			}
 		});
 		setPlayerState(PLAYER_STATE_INIT);
@@ -600,10 +630,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		try {
             //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
 			Log.d(TAG, "start play: url = " + url );
-			mMediaPlayer.setDataSource(MediaPlayerActivity.this,Uri.parse(url));
+			mMediaPlayer.setDataSource(url);
 			try{
 				mMediaPlayer.prepareAsync();
 				setPlayerState(PLAYER_STATE_PREPARING);
+				//mPlayerHandler.sendEmptyMessageDelayed(CHECK_PLAYER_START_CMD,2*1000);
 			}catch(IllegalStateException e) {
 				onPlayerCmd("release","");
 				onVideoPlayCompleted(true);
@@ -623,8 +654,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                 ImageView imageView = (ImageView) relativeLayout.getChildAt(i);
 
 				showImageWithIndex(imageView);
-            } else if(relativeLayout.getChildAt(i) instanceof MySurfaceView){
-                MySurfaceView surfaceView = (MySurfaceView) relativeLayout.getChildAt(i);
+            } else if(relativeLayout.getChildAt(i) instanceof SurfaceView){
+                SurfaceView surfaceView = (SurfaceView) relativeLayout.getChildAt(i);
                 Log.i(TAG,"initAdFiles surfaceView mMainPositionId =  " + mMainPositionId);
                 initPlayer(mMainPositionId);
             }
@@ -637,17 +668,17 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			String url = item.getPath();
 			Log.i(TAG,"player advertFile vType = " + item.getvType() + "url = " + item.getPath());
 			mPlayingAdType = item.getvType();
+			mPlayedTime = 0L;
         	if(item.getvType()==2) { //视频广告
 				//surface.setVisibility(View.VISIBLE);
 				mImageMain.setVisibility(View.GONE);
-                onPlayerCmd("reset","");
 				if (url != null && url.length() > 0) {
 					onPlayerCmd("source",url);
 					int duration = item.getDuration();
 					mPlayingAdDuration = duration;
 					mStartPlayTime = System.currentTimeMillis();
-					//mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
-					//mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
+					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
+					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD,duration*1000);
 				}
 			}else if(item.getvType()==1) {
 				//surface.setVisibility(View.GONE);
@@ -667,6 +698,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			savePlayRecord(posid);
 		}
 		if(!isPowerOff) {
+			onPlayerCmd("reset","");
 			initPlayer(posid);
 		}else{
 			setScreenOff(false);
@@ -751,13 +783,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		onPlayerCmd("release","");
 		surface = null;
 		surfaceHolder = null;
-		if (IsNetworkServiceOn) {
-			unbindService(mNetServiceConn);
-			IsNetworkServiceOn = false;
-		}
-		if (IsCameraServiceOn && mPublisher != null) {
+		if ( mCameraService != null && mCameraService.isRecording()) {
 			CameraService.cameraNeedStop = true;
-			stopRecord();
+			mCameraService.cameraRecordPause();
 		}
 		setScreen(1);
 	}
@@ -782,8 +810,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		if(mElevatorDoorManager!=null)
         	mElevatorStatusManager.setAccSensorDefaultValue(mInitZ);
 
-        if (IsCameraServiceOn && mPublisher != null && mCameraService!=null) {
-        	mCameraService.restartCameraRecord();
+        if ( mCameraService!=null && mCameraService.isRecording()) {
+        	mCameraService.cameraRecordResume(surfaceHolder_record.getSurface());
         }else {
 			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD, 30 * 1000);
 		}
@@ -824,16 +852,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		releaseWakeLock();
 		onPlayerCmd("release","");
 		EventBus.getDefault().unregister(this);
-		mElevatorDoorManager.closeSeriaPort();
-		if (IsNetworkServiceOn) {
-			unbindService(mNetServiceConn);
-			IsNetworkServiceOn = false;
-		}
-		CameraService.cameraNeedStop = true;
-		stopRecord();
-		if (IsCameraServiceOn) {
+		if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
+
+		if (mCameraService!=null && mCameraService.isRecording()) {
+			CameraService.cameraNeedStop = true;
+			mCameraService.cameraRecordStop();
 			unbindService(mCamServiceConn);
-			IsCameraServiceOn = false;
 		}
 	}
 
@@ -996,21 +1020,16 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void setScreenOff(boolean continuePlay){
 		if (getScreenStatus() != 0) {
 			setScreen(0);
-			RingLog.d(TAG, "setScreenOff IsCameraServiceOn = " + IsCameraServiceOn);
-			if(IsCameraServiceOn) {
-				if (mCameraService != null){
-					RingLog.d(TAG, "setScreenOff RecorderFinishStatus=" + mCameraService.getFinishStatus() + "RecordeStatus=" + mCameraService.getRecordStatus());
-				}else {
-					RingLog.d(TAG,"setScreenOff mCameraService is null");
-				}
-			}
-			if (IsCameraServiceOn && mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
+			if (mCameraService!=null && mCameraService.isRecording() && !CommonUtil.haveUdisk()) {
 				RingLog.d(TAG, "Player is paused, so pause record");
-				mPublisher.pauseRecord();
+				mCameraService.cameraRecordPause();
 			}
 			if(!continuePlay) {
 				if (mPlayingAdType == 2) {
+					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 					onPlayerCmd("pause","");
+					mPausePlayTime = System.currentTimeMillis();
+					RingLog.d(TAG, "remainingTime mPausePlayTime " + mPausePlayTime);
 				} else if (mPlayingAdType == 1) {
 					mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
 					mPausePlayTime = System.currentTimeMillis();
@@ -1024,24 +1043,25 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			setScreen(1);
 			if (mPlayingAdType == 2) {
 					onPlayerCmd("resume","");
+					Long playedTime = mPausePlayTime - mStartPlayTime;
+					mPlayedTime += playedTime;
+					Long remainingTime = mPlayingAdDuration * 1000 - mPlayedTime;
+					if (remainingTime < 0) remainingTime = Long.valueOf(mPlayingAdDuration * 1000);
+					RingLog.d(TAG, "Player is resumed, Duration= " + mPlayingAdDuration +"playeredTime = " +mPlayedTime+ "remainingTime = " + remainingTime);
+					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD, remainingTime);
+					mStartPlayTime = System.currentTimeMillis();
 			} else if (mPlayingAdType == 1) {
 					Long playedTime = mPausePlayTime - mStartPlayTime;
-					Long remainingTime = mPlayingAdDuration * 1000 - playedTime;
+					mPlayedTime += playedTime;
+					Long remainingTime = mPlayingAdDuration * 1000 - mPlayedTime;
 					if (remainingTime < 0) remainingTime = Long.valueOf(mPlayingAdDuration * 1000);
 					RingLog.d(TAG, "Player is resumed, remainingTime = " + remainingTime);
 					mHandler.sendEmptyMessageDelayed(SHOW_NEXT_ADVERT_CMD, remainingTime);
+					mStartPlayTime = System.currentTimeMillis();
 			}
-			RingLog.d(TAG, "setScreenOn IsCameraServiceOn = " + IsCameraServiceOn);
-			if(IsCameraServiceOn) {
-				if (mCameraService != null){
-					RingLog.d(TAG, "setScreenOn RecorderFinishStatus=" + mCameraService.getFinishStatus() + "RecordeStatus=" + mCameraService.getRecordStatus());
-				}else {
-					RingLog.d(TAG,"setScreenOn mCameraService is null");
-				}
-			}
-			if (IsCameraServiceOn && mCameraService != null && !mCameraService.getFinishStatus() && !mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
+			if (mCameraService != null && mCameraService.isRecording() && !CommonUtil.haveUdisk()) {
 				RingLog.d(TAG, "Player is resumed, now resume record");
-				mPublisher.resumeRecord();
+				mCameraService.cameraRecordResume(surfaceHolder_record.getSurface());
 			}
 		}
 	}
@@ -1204,28 +1224,33 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void showAdvertInfo(AdvertInfoData data){
-		if(data.getvTime()==1){ /*需要显示时间信息*/
-			showTimeInfo(true);
+		if(data!=null) {
+			if (data.getvTime() == 1) { /*需要显示时间信息*/
+				showTimeInfo(true);
+			} else {
+				showTimeInfo(false);
+			}
+			if (data.getWeather() == 1) {
+				showWeatherInfo(true);
+			} else {
+				showWeatherInfo(false);
+			}
+			if (data.getWriting() != null && !data.getWriting().isEmpty()) {
+				if (CommonUtil.compareDateState(data.getStartTime(), data.getEndTime())) { /*需要显示滚动信息*/
+					setAdInfoScroll(true, data);
+				} else {
+					setAdInfoScroll(false, data);
+				}
+			} else {
+				setAdInfoScroll(false, data);
+			}
+			if (data.getUrgentwriting() != null && !data.getUrgentwriting().isEmpty()) {/*需要显示紧急通知*/
+				showUrgentInfo(data, MediaPlayerActivity.this);
+			}
 		}else{
 			showTimeInfo(false);
-		}
-		if(data.getWeather()==1){
-			showWeatherInfo(true);
-		}else{
 			showWeatherInfo(false);
-		}
-		if (data.getWriting()!=null && !data.getWriting().isEmpty()){
-			if(CommonUtil.compareDateState(data.getStartTime(),data.getEndTime())) { /*需要显示滚动信息*/
-				setAdInfoScroll(true, data);
-			}
-			else{
-				setAdInfoScroll(false,data);
-			}
-		}else{
-			setAdInfoScroll(false,data);
-		}
-		if(data.getUrgentwriting()!=null && !data.getUrgentwriting().isEmpty()){/*需要显示紧急通知*/
-			showUrgentInfo(data,MediaPlayerActivity.this);
+			setAdInfoScroll(false, data);
 		}
 	}
 
@@ -1248,9 +1273,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 				}else if("POWER_ON_ALARM".equals(event.getData())){
 					saveCurrentTime();
-					if (mPublisher != null) {
+					if (mCameraService != null && mCameraService.isRecording()) {
 						CameraService.cameraNeedStop = true;
-						mPublisher.stopRecord();
+						mCameraService.cameraRecordStop();
 					}
 					CommonUtil.reboot(MediaPlayerActivity.this);
 				}
@@ -1302,6 +1327,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			removeImageView();
 			initAdView();
 			initAdFiles();
+		}
+		@Override
+		public void onPrintInfo(){
+			if(mElevatorDoorManager!=null) mElevatorDoorManager.printDoorManagerInfo();
+			if(mElevatorStatusManager!=null) mElevatorStatusManager.printDoorStatusInfo();
+			Log.i(TAG,"Screen Status = " + getScreenStatus() + "player status = " + getPlayerState() + "isPowerOff = " + isPowerOff);
 		}
 	};
 
@@ -1363,6 +1394,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				}
 			}
 		}
+		@Override
+		public void onElevatorError(){
+			CommonUtil.reboot(MediaPlayerActivity.this);
+		}
 	};
 
 	RecorderEventListener mRecorderEventListener = new RecorderEventListener(){
@@ -1373,94 +1408,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		@Override
 		public void onRecordStart(){
 			if(getScreenStatus()==0){
-				if (IsCameraServiceOn && mCameraService.getRecordStatus() && !CommonUtil.haveUdisk()) {
+				if (mCameraService!=null && mCameraService.isRecording() && !CommonUtil.haveUdisk()) {
 					RingLog.d(TAG, "onRecordStart Screen is off, so pause record");
-					mPublisher.pauseRecord();
+					mPlayerHandler.sendEmptyMessageDelayed(RECORDER_PAUSE_CMD,1000);
 				}
 			}
 		}
 	};
-	@Override
-	public void onEncodeIllegalArgumentException(IllegalArgumentException e) {
-		handleException(e);
-	}
 
-	private void handleException(Exception e) {
-		try {
-			RingLog.d(TAG, e.getMessage());
-		} catch (Exception e1) {
-			//
-		}
-	}
-
-	@Override
-	public void onNetworkWeak() {
-		RingLog.d(TAG, "The network is weak");
-	}
-
-	@Override
-	public void onNetworkResume() {}
 
 	private void checkCamera() {
 		if(CommonUtil.haveUdisk()||mPlayListManager.isAdListUpdated()) {
-			// 初始化CameraView 并设置为不可见
-			int num = Camera.getNumberOfCameras();
-			RingLog.d(TAG, "Camera numbers is " + num);
-			if (num != 0) {
-				RingLog.d(TAG, "Camera is on");
-				firstStartRecord = true;
-				mHandler.sendEmptyMessageDelayed(START_SERVICE_CMD, 3000);
-			}
+			mHandler.sendEmptyMessageDelayed(START_SERVICE_CMD, 3000);
 		}
 
-	}
-
-	private void initCameraView() {
-		// 初始化相机并打开
-		mCameraView.setVisibility(View.VISIBLE);
-		mPublisher = new SrsPublisher(mCameraView);
-		// 编码状态回调
-		mPublisher.setEncodeHandler(new SrsEncodeHandler(this));
-		// 预览分辨率
-		mPublisher.setPreviewResolution(1280, 720);
-		// 推流分辨率
-		mPublisher.setOutputResolution(1280, 720);
-		// 传输率
-		mPublisher.setVideoHDMode();
-		// 将摄像头预览最小化
-		RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(1, 1);
-		layoutParams.setMargins(0, 0, 0, 0);
-		mCameraView.setLayoutParams(layoutParams);
-		// 调整摄像头角度
-		if(mMode.equals("GAPADS4A1")) {
-			mCameraView.setPreviewOrientation(0);
-		}else{
-			mCameraView.setPreviewOrientation(0);
-		}
-		mPublisher.startCamera();
-	}
-
-	private void startPush() {
-		if (firstStartRecord) {
-			// 等待第一次录像完成
-			return;
-		}
-		if (mCameraService.getFinishStatus() && !mCameraService.getUploadStatus() && !mCameraService.recordUploadSuccess()) {
-			// 开始上传录像
-			mCameraService.uploadRecord();
-		}
-	}
-
-	private void stopRecord() {
-		if (mPublisher != null) {
-			mPublisher.stopRecord();
-		}
-	}
-
-
-	private void initService() {
-		initCameraService();
-		//initNetworkService();
 	}
 
 	private void initCameraService() {
@@ -1468,7 +1429,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		Intent intent = new Intent(MediaPlayerActivity.this, CameraService.class);
 		startService(intent);
 		bindService(intent, mCamServiceConn, getApplicationContext().BIND_AUTO_CREATE);
-		IsCameraServiceOn = true;
 	}
 
 	private void initCamServiceConnection() {
@@ -1487,59 +1447,22 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		};
 	}
 
-    private void initNetworkService() {
-		initNetServiceConnection();
-		Intent intent = new Intent(MediaPlayerActivity.this, NetworkService.class);
-		startService(intent);
-		bindService(intent, mNetServiceConn, getApplicationContext().BIND_AUTO_CREATE);
-		IsNetworkServiceOn = true;
-	}
-
-    private void initNetServiceConnection() {
-		mNetServiceConn = new ServiceConnection() {
-			@Override
-			public void onServiceConnected(ComponentName name, IBinder service) {
-				mNetworkService = ((NetworkService.MyBinder) service).getService();
-				mNetworkService.setOnGetConnectState(new NetworkService.GetConnectState() {
-					@Override
-					public void GetState(int isConnected) {
-						if (mIntentId != 0 && isConnected != 0) {
-							// 当前还是处于有网状态，不做任何动作
-							return;
-						}
-						if (mIntentId != isConnected) {
-							// 如果当前连接状态与广播服务返回的状态不同才进行通知显示
-							mIntentId = isConnected;
-							RingLog.d(TAG, "Current network is " + mIntentId);
-
-							if (mIntentId == 0) {
-								// 未连接
-								RingLog.d(TAG, "The network has disconnected");
-								CameraService.cameraNeedStop = true;
-								mHandler.sendEmptyMessage(STOP_PUSH_CMD);
-							} else if (mIntentId != 0) {
-								// 已连接
-								RingLog.d(TAG, "The network has connected");
-								mHandler.sendEmptyMessage(START_PUSH_CMD);
-							}
-						}
-					}
-				});
-			}
-
-			@Override
-			public void onServiceDisconnected(ComponentName name) {}
-		};
-	}
-
 	private void startFirstRecord() {
-		initCameraView();
-		if (mCameraService != null) {
-			mCameraService.registerListener(mRecorderEventListener);
-			mCameraService.startCameraRecord(mPublisher);
+		if (mCameraService != null && !mCameraService.isRecording()) {
+			int cameraNumber = mCameraService.getCameraNumber();
+			RingLog.d(TAG, "Camera numbers is " + cameraNumber);
+			if(cameraNumber>0) {
+				mCameraService.registerListener(mRecorderEventListener);
+				mCameraService.cameraRecordStart(surfaceHolder_record.getSurface());
+			}
 		}
+		//initCameraView();
+
 	}
 
+    private TerminalAdvertPackageVo getScheduleTimesCache() {
+        return ScheduleTimesCache.get();
+    }
     private void initAdView() {
         List<TemplateReginVo> regionList = mPlayListManager.getTemplateList();
         boolean onlyMainPos = true;

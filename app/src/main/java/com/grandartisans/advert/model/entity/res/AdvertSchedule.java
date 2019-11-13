@@ -9,6 +9,7 @@ public class AdvertSchedule {
     private String   startTime;
     private String   endTime;
     private String   detail;
+    private int version;
 
     public Long getId() {
         return id;
@@ -72,5 +73,13 @@ public class AdvertSchedule {
 
     public void setDetail(String detail) {
         this.detail = detail;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
     }
 }

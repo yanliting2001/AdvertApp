@@ -8,19 +8,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-import fi.iki.elonen.NanoHTTPD;
-import fi.iki.elonen.NanoHTTPD.Response.Status;
+//import fi.iki.elonen.NanoHTTPD.Response.Status;
 
 import android.util.Log;
 
 import com.westone.cryptoSdk.Api;
 
 
-public class M3u8Server extends fi.iki.elonen.NanoHTTPD {
+public class M3u8Server extends NanoHTTPD {
 	
 	private static String TAG = "M3U8Server";
 	
-	private static fi.iki.elonen.NanoHTTPD server;
+	private static NanoHTTPD server;
 	
 	public static final int PORT = 8769;
 	private static Api encApi=null;
@@ -105,7 +104,7 @@ public class M3u8Server extends fi.iki.elonen.NanoHTTPD {
 				} catch (FileNotFoundException e) {
 					e.printStackTrace();
                     Log.d(TAG, "read data from inputstream error 000!!");
-					return newFixedLengthResponse(Status.NOT_FOUND, "text/html", "文件不存在：" + url);
+					return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/html", "文件不存在：" + url);
 				}
 			}
     		long length = file.length();
@@ -115,10 +114,10 @@ public class M3u8Server extends fi.iki.elonen.NanoHTTPD {
     			// m3u8文件
     			mimeType = "video/x-mpegURL";
     		}
-    		return newChunkedResponse(Status.OK, mimeType, fis);
+    		return newChunkedResponse(Response.Status.OK, mimeType, fis);
     	} else {
             Log.d(TAG, "请求的文件不存在 ！！！");
-    		return newFixedLengthResponse(Status.NOT_FOUND, "text/html", "文件不存在：" + url);
+    		return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/html", "文件不存在：" + url);
     	}
     }
 }

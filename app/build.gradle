@@ -6,8 +6,8 @@ android {
         applicationId "com.grandartisans.advert"
         minSdkVersion 19
         targetSdkVersion 27
-        versionCode 57
-        versionName "1.1.45"
+        versionCode 61
+        versionName "1.2.1"
         ndk {
             abiFilters "armeabi-v7a"
         }
@@ -40,7 +40,6 @@ dependencies {
     implementation 'com.android.support.constraint:constraint-layout:1.1.0'
 
     compile(name: 'devring-debug', ext: 'aar')
-    compile(name: 'library-yasea', ext: 'aar')
     compile 'org.xutils:xutils:3.3.36'
     compile 'com.aliyun.dpa:oss-android-sdk:+'
     //Rxjava2 & RxAndroid2
@@ -62,9 +61,11 @@ dependencies {
     api 'org.greenrobot:eventbus:3.0.0'
     //用于替换fresco的网络加载为okhttp
     implementation files('libs/prjManager.jar')
-    implementation files('libs/nanohttpd-2.2.0.jar')
+    //implementation files('libs/nanohttpd-2.3.1.jar')
     provided files('libs/pico.jar')
     implementation files('libs/bcprov-jdk15on-1.59.jar')
     implementation files('libs/junjiangSdk.jar')
     compile 'com.android.support:multidex:1.0.1'
+    compile files('libs/pldroid-player-1.6.0.jar')
+    compile 'com.github.yangjie10930:EpMedia:v0.9.5'
 }

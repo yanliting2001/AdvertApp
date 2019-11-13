@@ -3,6 +3,7 @@ package com.grandartisans.advert.receiver;
 import com.grandartisans.advert.activity.MediaPlayerActivity;
 import com.grandartisans.advert.service.RemoteService;
 import com.grandartisans.advert.service.UpgradeService;
+import com.ljy.devring.DevRing;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -39,6 +40,7 @@ public class BootReceiver extends BroadcastReceiver {
 			editor.putLong("SystemBootTime", new Date().getTime());
 			editor.commit();
 
+			DevRing.cacheManager().spCache("TrafficFlow").put("value",0L);
 			Intent intentService = new Intent(context,UpgradeService.class);
 			context.startService(intentService);
 		}else if(action.equals("android.net.conn.CONNECTIVITY_CHANGE")){

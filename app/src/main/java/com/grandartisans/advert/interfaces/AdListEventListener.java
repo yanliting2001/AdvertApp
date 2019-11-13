@@ -9,4 +9,5 @@ public interface AdListEventListener {
     public void onWeatherUpdate(AdvertWeatherData data);
     public void onRecoderStart();
     public void onTemplateUpdate();
+    public void onPrintInfo();
 }
