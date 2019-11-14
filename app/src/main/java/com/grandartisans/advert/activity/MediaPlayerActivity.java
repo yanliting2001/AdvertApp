@@ -485,9 +485,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_FULLSCREEN;
         decorView.setSystemUiVisibility(uiOptions);
+        /*
 		AdvertApp app = (AdvertApp) getApplication();
 		app.initApps();
-
+        */
 		setCurrentTime();
 		keepScreenWake();
 
@@ -824,7 +825,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			menuKeyPressedCount +=1;
 			startSysSetting(MediaPlayerActivity.this);
 		}else if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
-			startMyApp(MediaPlayerActivity.this,"app_browser");
+			//startMyApp(MediaPlayerActivity.this,"app_browser");
 		}
 		else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
 			return true;
@@ -1388,7 +1389,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				if(CommonUtil.getGsensorEnabled()!=0) {
 					mHandler.sendEmptyMessageDelayed(SET_SCREEN_ON_CMD, 1000);
 					mHandler.removeMessages(SET_LIFT_STOP_CMD);
-					mHandler.sendEmptyMessageDelayed(SET_LIFT_STOP_CMD, 1000 * 60*2);
+					mHandler.sendEmptyMessageDelayed(SET_LIFT_STOP_CMD, 1000 * 60);
 				}else{
 					mHandler.sendEmptyMessageDelayed(SET_SCREEN_ON_CMD, 1000);
 				}
@@ -1627,13 +1628,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void showTimeInfo(boolean visiable){
-		linearLayoutText.setVisibility(View.VISIBLE);
 		if(visiable==true) {
+            linearLayoutText.setVisibility(View.VISIBLE);
 			textViewTime.setVisibility(View.VISIBLE);
 			String CurrentTime = CommonUtil.getCurrentTimeString(System.currentTimeMillis());
 			textViewTime.setText(CurrentTime);
 			mHandler.sendEmptyMessageDelayed(UPDATE_TIME_INFO_CMD,3000);
 		}else{
+            linearLayoutText.setVisibility(View.GONE);
 			textViewTime.setVisibility(View.GONE);
 		}
 	}
