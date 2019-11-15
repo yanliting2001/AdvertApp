@@ -148,17 +148,18 @@ public class CameraService extends Service  {
 
     public void cameraRecordStart(Surface surface) {
         RingLog.d(TAG, "Open Record Camera");
-        mRecorderManager.initialize();
-        recordList.clear();
-        recordSegment = 0;
-        String fileName = getRecordName(recordSegment);
-        recordList.add(fileName);
-        mRecorderManager.recordStart(surface,fileName);
-        isRecording = true;
-        mTimerCount = 0;
-        startPublishRecordTimer();
-        if(mRecorderEventListener!=null)
-            mRecorderEventListener.onRecordStart();
+        if(mRecorderManager.initialize()) {
+            recordList.clear();
+            recordSegment = 0;
+            String fileName = getRecordName(recordSegment);
+            recordList.add(fileName);
+            mRecorderManager.recordStart(surface, fileName);
+            isRecording = true;
+            mTimerCount = 0;
+            startPublishRecordTimer();
+            if (mRecorderEventListener != null)
+                mRecorderEventListener.onRecordStart();
+        }
     }
 
     public void cameraRecordStop(){

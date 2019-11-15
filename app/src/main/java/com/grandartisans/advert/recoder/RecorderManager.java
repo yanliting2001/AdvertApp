@@ -122,12 +122,14 @@ public class RecorderManager  {
     }
 
     //点击对焦
-    public void initialize() {
+    public boolean initialize() {
         Log.d(TAG,"RecorderManager init open Camera");
         mCamera = Camera.open(0);
         if(mCamera==null){
             Log.e(TAG,"RecorderManager init open Camera error ");
+            return false;
         }
+        return true;
         //mPreview = new CameraPreview(context, mCamera);
     }
 
@@ -180,13 +182,14 @@ public class RecorderManager  {
     }
 
     public boolean recordStart(Surface surface,String fileName){
-        if(!recording){
+        if(!recording && mCamera!=null){
             Log.d(TAG,"RecorderManager recorder start");
             //准备开始录制视频
             if (!prepareMediaRecorder(surface,fileName)) {
                 Log.d(TAG,"RecorderManager recorder failed");
                 releaseCamera();
                 releaseMediaRecorder();
+                return false;
             }
             //开始录制视频
             try {
@@ -197,6 +200,7 @@ public class RecorderManager  {
                 ex.printStackTrace();
                 releaseCamera();
                 releaseMediaRecorder();
+                return false;
             }
             Log.d(TAG,"RecorderManager recorder start mediaRecorder success");
             recording = true;
