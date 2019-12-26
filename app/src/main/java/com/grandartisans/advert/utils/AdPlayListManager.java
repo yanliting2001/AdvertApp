@@ -110,7 +110,15 @@ public class AdPlayListManager {
                 AdvertData advertData = mAdvertList.get(i);
                 AdvertSchedule advertSchedule = advertData.getAdvertSchedule();
                 if(advertSchedule.getStartTime()!=null && advertSchedule.getEndTime()!=null){
-                    if (CommonUtil.compareDateState(advertSchedule.getStartTime(), advertSchedule.getEndTime())) {
+                    String startTime = advertSchedule.getStartTime();
+                    String endTime = advertSchedule.getEndTime();
+                    int startTimeIndex = startTime.indexOf(" ");
+                    int endTimeIndex = endTime.indexOf(" ");
+                    String dateStart = startTime.substring(0,startTimeIndex).trim();
+                    String timeStart = startTime.substring(startTimeIndex+1,startTime.length()).trim();
+                    String dateEnd = endTime.substring(0,endTimeIndex).trim();
+                    String timeEnd = endTime.substring(endTimeIndex+1,endTime.length()).trim();
+                    if (CommonUtil.compareTimeState(dateStart,timeStart, dateEnd,timeEnd)) {
                         if(mScheduleIndex!=i) {
                             mScheduleIndex = i;
                             mTemplateIndex=0;
@@ -129,7 +137,7 @@ public class AdPlayListManager {
             if(mScheduleIndex!=-1 && mScheduleIndex < mAdvertList.size()){
                 AdvertData advertData = mAdvertList.get(mScheduleIndex);
                 List<TemplateVo> templateVo = advertData.getTemplateVo();
-                if(templateVo.size()>1){
+                if(templateVo.size()>=1){
                     Log.i(TAG,"need change template mTemplateIndex = "  + mTemplateIndex);
                     mTemplateIndex+=1;
                     Log.i(TAG,"need change template mTemplateIndex = "  + mTemplateIndex + "template list size = " + templateVo.size());
@@ -255,6 +263,7 @@ public class AdPlayListManager {
             String str = gson.toJson(mAdvertList);
             //Log.i(TAG, "save advertMap = " + str);
             DevRing.cacheManager().diskCache("advertList").put("playList", str);
+            AdvertVersion.resetAdVersion();
             for (int i = 0; i < versionList.size(); i++) {
                 PositionVer advertPosition = versionList.get(i);
                 AdvertVersion.setAdVersion(advertPosition.getAdvertPositionId().intValue(), advertPosition.getVersion());

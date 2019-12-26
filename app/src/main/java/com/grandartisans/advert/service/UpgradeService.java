@@ -884,9 +884,16 @@ public class UpgradeService extends Service {
                                         }
                                     }
                                     if (list != null && list.size() > 0) {
+                                        RingLog.d("version list size = " + list.size() + "save version list size = " + AdvertVersion.getVersiolCount());
+                                        if(list.size()!=AdvertVersion.getVersiolCount()){
+                                            if (!isDownloadingAdFiles()){
+                                                getAdList(token,list);
+                                                break;
+                                            }
+                                        }
                                         for (int i = 0; i < list.size(); i++) {
                                             PositionVer item = (PositionVer)list.get(i);
-                                            RingLog.d("send HeartBeat  positionID " + item.getAdvertPositionId() + "version = " + item.getVersion() );
+                                            RingLog.d("send HeartBeat  positionID " + item.getAdvertPositionId() + "version = " + item.getVersion());
                                             RingLog.d("HeartBeat save position version =" +  AdvertVersion.getAdVersion(item.getAdvertPositionId()));
                                             if (AdvertVersion.getAdVersion(item.getAdvertPositionId()) > 0) {
                                                 if (item.getVersion() != AdvertVersion.getAdVersion(item.getAdvertPositionId())) {
@@ -1158,12 +1165,19 @@ public class UpgradeService extends Service {
                             item.setAdvertid(advertFile.getAdvertid());
                             item.setAdPositionID(region.getId());
                             item.setTemplateid(region.getTemplateid());
-                            /*
-                            item.setStartDate(dateSchedueVo.getDateSchedule().getStartDate());
-                            item.setEndDate(dateSchedueVo.getDateSchedule().getEndDate());
-                            item.setStartTime(timeScheduleVo.getTimeSchedule().getStartTime() + ":00");
-                            item.setEndTime(timeScheduleVo.getTimeSchedule().getEndTime() + ":00");
-                            */
+                            String scheduleStartTime = advertScheduleVo.getAdvertSchedule().getStartTime();
+                            int index = scheduleStartTime.indexOf(" ");
+                            String startDate = scheduleStartTime.substring(0,index).trim();
+                            String startTime = scheduleStartTime.substring(index+1,scheduleStartTime.length()).trim();
+                            String scheduleEndTime = advertScheduleVo.getAdvertSchedule().getEndTime();
+                            index = scheduleEndTime.indexOf(" ");
+                            String endDate = scheduleEndTime.substring(0,index).trim();
+                            String endTime = scheduleEndTime.substring(index+1,scheduleEndTime.length()).trim();
+
+                            item.setStartDate(startDate);
+                            item.setEndDate(endDate);
+                            item.setStartTime(startTime);
+                            item.setEndTime(endTime);
                             item.setDuration(advertFile.getVideoDuration());
                             item.setvType(advertFile.getVtype());
                             adurls.add(item);
