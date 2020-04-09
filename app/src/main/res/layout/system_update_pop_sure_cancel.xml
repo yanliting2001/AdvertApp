@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="bottom"
+    android:orientation="vertical" >
+    
+    <LinearLayout 
+        android:id="@+id/main_ll"
+        android:layout_width="match_parent"
+    	android:layout_height="250dp"
+     	android:gravity="center"
+     	android:layout_gravity="bottom|center_horizontal"
+    	android:orientation="vertical"
+        >
+	<TextView 
+	    android:id="@+id/content"
+	    android:layout_width="match_parent"
+    	android:layout_height="110dp"
+    	android:gravity="center|bottom"
+    	android:textColor="#FFFFFF"
+    	android:textSize="18sp"
+	    />
+		<LinearLayout 
+		    android:layout_width="match_parent"
+	    	android:layout_height="match_parent"
+	    	android:orientation="horizontal"
+	    	android:gravity="center"
+	    	android:paddingBottom="10dp"
+		    >
+		    <Button 
+		        android:id="@+id/sure"
+		        android:layout_width="200dp"
+	    		android:layout_height="70dp" 
+	    		android:textColor="@color/common_color_grey_white"
+	    		android:background="@drawable/button_bg"
+	    		android:textStyle="bold"
+	    		android:textSize="20sp"
+		        />
+		    <Button 
+		        android:id="@+id/cancel"
+		        android:layout_width="200dp"
+	    		android:layout_height="70dp" 
+	    		android:layout_marginLeft="50dp"
+	    		android:textColor="@color/common_color_grey_white"
+	    		android:background="@drawable/button_bg"
+	    		android:textStyle="bold"
+	    		android:textSize="20sp"
+		        />
+		</LinearLayout>
+	</LinearLayout>
+</LinearLayout>

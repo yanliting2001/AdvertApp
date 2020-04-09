@@ -16,8 +16,7 @@ public class AppEvent<T> {
     public final static int CLOSE_ADVERT_INFO = 10;
     public final static int SET_ADVERT_INFO = 11;
     public final static int UPDATE_ADVERT_WEATHER = 12;
-
-
+    public final static int NETWORK_ONOFF_ALARM_EVENT = 13;
     public AppEvent(){
 
     }

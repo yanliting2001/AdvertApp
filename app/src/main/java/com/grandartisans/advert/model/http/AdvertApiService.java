@@ -1,6 +1,9 @@
 package com.grandartisans.advert.model.http;
 
 import com.grandartisans.advert.app.constant.UrlConstants;
+import com.grandartisans.advert.model.entity.UpgradeBean;
+import com.grandartisans.advert.model.entity.post.ActiveCheckParamsBean;
+import com.grandartisans.advert.model.entity.post.ActiveCheckResultBean;
 import com.grandartisans.advert.model.entity.post.AdvertParameter;
 import com.grandartisans.advert.model.entity.post.AppUpgradeParameter;
 import com.grandartisans.advert.model.entity.post.EventParameter;
@@ -11,14 +14,20 @@ import com.grandartisans.advert.model.entity.res.AdListHttpResult;
 import com.grandartisans.advert.model.entity.res.AdvertInfoResult;
 import com.grandartisans.advert.model.entity.res.AdvertWeatherResult;
 import com.grandartisans.advert.model.entity.res.HeartBeatResult;
+import com.grandartisans.advert.model.entity.res.HttpResult;
+import com.grandartisans.advert.model.entity.res.MovieRes;
 import com.grandartisans.advert.model.entity.res.ReportInfoResult;
 import com.grandartisans.advert.model.entity.res.TokenHttpResult;
 import com.grandartisans.advert.model.entity.res.UpgradeHttpResult;
 
+import java.util.List;
+
 import io.reactivex.Observable;
 import retrofit2.http.Body;
+import retrofit2.http.GET;
 import retrofit2.http.Headers;
 import retrofit2.http.POST;
+import retrofit2.http.Query;
 
 public interface AdvertApiService {
     @Headers({"Content-Type: application/json;charset=utf-8","Accept: application/json"})
@@ -52,4 +61,14 @@ public interface AdvertApiService {
     @Headers({"Content-Type: application/json;charset=utf-8","Accept: application/json"})
     @POST(UrlConstants.GET_ADVERT_WEATHER)
     Observable<AdvertWeatherResult> getAdvertWeather(@Body AdvertParameter parameter);
+
+    @Headers({"Content-Type: application/json;charset=utf-8","Accept: application/json"})
+    @POST(UrlConstants.ACTIVE_CHECK)
+    Observable<ActiveCheckResultBean> activeCheck(@Body ActiveCheckParamsBean parameter);
+
+    @Headers({"Content-Type: application/json;charset=utf-8","Accept: application/json"})
+    @GET(UrlConstants.GET_SYSTEM_UPGRADE_OLD)
+    Observable<UpgradeBean> systemUpgrade(@Query("version") String version, @Query("guid") String guid,
+                                          @Query("hw_ver") String hwver,@Query("mac") String mac,@Query("PT") String pt,
+                                          @Query("CHID") String chid);
 }

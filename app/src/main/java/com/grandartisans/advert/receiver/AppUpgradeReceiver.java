@@ -4,6 +4,7 @@ import com.grandartisans.advert.activity.MediaPlayerActivity;
 import com.grandartisans.advert.service.RemoteService;
 import com.grandartisans.advert.service.UpgradeService;
 import com.grandartisans.advert.utils.CommonUtil;
+import com.grandartisans.advert.utils.Utils;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -20,7 +21,7 @@ public class AppUpgradeReceiver extends BroadcastReceiver {
         String action = intent.getAction();
 		if ("android.intent.action.PACKAGE_REPLACED".equals(action)) {
 			String packageName = intent.getData().getSchemeSpecificPart();
-			if(packageName.equals("com.grandartisans.advert")) {
+			if(packageName.equals(Utils.getAppPackageName(context))) {
 				Intent it = new Intent(context, MediaPlayerActivity.class);
 				it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				context.startActivity(it);

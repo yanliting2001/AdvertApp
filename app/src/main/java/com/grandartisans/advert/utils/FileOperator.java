@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 
 /** 
  *  
@@ -264,7 +265,28 @@ public class FileOperator {
             n += str.indexOf(hexs[2 * i + 1]);
             bytes[i] = (byte) (n & 0xff);
         }
+        Log.i("htx2Str", Arrays.toString(bytes));
         return new String(bytes);
+    }
+
+    /**
+     * 16进制直接转换成为byte[]数组(无需Unicode解码)
+     * @param hexStr
+     * @return
+     */
+    public static byte[] hexStr2Bytes(String hexStr) {
+
+        String str = "0123456789ABCDEF";
+        char[] hexs = hexStr.toCharArray();
+        byte[] bytes = new byte[hexStr.length() / 2];
+        int n;
+        for (int i = 0; i < bytes.length; i++) {
+            n = str.indexOf(hexs[2 * i]) * 16;
+            n += str.indexOf(hexs[2 * i + 1]);
+            bytes[i] = (byte) (n & 0xff);
+        }
+        Log.i("htx2Str", Arrays.toString(bytes));
+        return bytes;
     }
 
     public static void saveStringToFile(String fileName, String value) {

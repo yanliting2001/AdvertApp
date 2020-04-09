@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+    
+    <RelativeLayout 
+        android:id="@+id/main_rl"
+        android:layout_width="match_parent"
+    	android:layout_height="match_parent" 
+        >
+        <LinearLayout 
+            android:id="@+id/topLocalInfor"
+            android:layout_width="match_parent"
+    		android:layout_height="17dp" 
+    		android:orientation="horizontal"
+    		android:layout_marginTop="10dp"
+            >
+        </LinearLayout>
+        <RelativeLayout 
+            android:id="@+id/pageTitle"
+            android:layout_width="match_parent"
+    		android:layout_height="83dp" 
+    		android:layout_below="@id/topLocalInfor"
+    		android:layout_marginTop="0dp"
+    		android:layout_marginLeft="20dp"
+            >
+            <ImageView 
+                android:id="@+id/leftIcon"
+             	android:layout_width="20dp"
+    			android:layout_height="83dp" 
+    			android:layout_marginRight="20dp"
+    			android:src="@drawable/top_left_icon"
+                />
+            <TextView 
+                android:id="@+id/bigTitle"
+                android:layout_width="200dp"
+    			android:layout_height="50dp" 
+    			android:textSize="@dimen/page_BigTitle_size"
+    			android:layout_toRightOf="@id/leftIcon"
+    			android:textColor="@color/common_color_white"
+    			android:text="@string/ethernet_bigTitle"
+                />
+             <TextView 
+                android:id="@+id/littleTitle"
+                android:layout_width="200dp"
+    			android:layout_height="28dp" 
+    			android:textSize="@dimen/page_littleTitle_size"
+    			android:layout_below="@+id/bigTitle"
+    			android:textColor="@color/page_LittleTitle"
+    			android:text="@string/ethernet_littleTitle"
+    			android:layout_alignLeft="@+id/bigTitle"
+                />
+        </RelativeLayout>
+        
+        <include 
+            android:id="@+id/ethernet_detail" 
+            layout="@layout/network_detial" 
+            android:layout_below="@id/pageTitle" 
+            android:layout_width="800dp"
+            android:layout_height="450dp"
+            android:layout_centerInParent="true"
+            android:layout_marginTop="80dp"
+            />
+    </RelativeLayout>
+
+</FrameLayout>

@@ -216,7 +216,11 @@ public class SystemInfoManager{
             deviceId=deviceId.toUpperCase();
         }else {
             //deviceId = "j5043400148c260001";
-            deviceId = getLocalMacAddress(context);
+            deviceId = CommonUtil.getDeviceId();
+            if(deviceId==null) {
+                deviceId = getLocalMacAddress(context);
+            }
+
         }
         return deviceId;
     }

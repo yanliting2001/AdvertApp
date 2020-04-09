@@ -8,6 +8,7 @@ import com.grandartisans.advert.R;
 import com.grandartisans.advert.adapter.MyAppsDataAdapter;
 import com.grandartisans.advert.app.AdvertApp;
 import com.grandartisans.advert.receiver.PackageState;
+import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.Go3CPlayerDef;
 import com.grandartisans.advert.view.AppManagerSubMenuPop;
 import com.grandartisans.advert.view.SmoothScrollGridView;
@@ -18,6 +19,7 @@ import android.os.Message;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -29,6 +31,7 @@ import android.widget.AdapterView.OnItemClickListener;
 
 public class MyAppActivity extends Activity {
 
+	final private String TAG = "MyAppActivity";
 	final private String APP_BROWSER = "app_browser";
 	private String appmode = APP_BROWSER;
 	private SmoothScrollGridView appsGridView;
@@ -85,8 +88,10 @@ public class MyAppActivity extends Activity {
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		if (packageState != null)
+		if (packageState != null) {
+			Log.i(TAG,"unregisterPackageListerner");
 			packageState.unregisterPackageListener(mcontext);
+		}
 	}
 
 	class gridViewOnkey implements OnKeyListener {
@@ -105,6 +110,7 @@ public class MyAppActivity extends Activity {
 				startAppMenuActivity();
 				return true;
 			}
+			Log.i(TAG,"gridViewOnKey keycode =" + arg1 + "action = " + arg2.getAction());
 			appsGridView.smoothOnKeyListener.onKey(arg0, arg1, arg2);
 			return false;
 		}
@@ -131,8 +137,8 @@ public class MyAppActivity extends Activity {
 		} else {
 			for (Map<String, Object> map : app.getInstalled()) {
 				String packageName = (String) map.get("package");
-
-				if (!"com.adobe.flashplayer".equals(packageName) && !"com.android.browser".equals(packageName) && !"com.android.providers.downloads.ui".equals(packageName) && !"com.android.settings".equals(packageName) && !"com.softwinner.miracastReceiver".equals(packageName)) {
+				Log.i(TAG,"packageName = " + packageName);
+				if (!"com.adobe.flashplayer".equals(packageName)  && !"com.android.providers.downloads.ui".equals(packageName) && !"com.softwinner.miracastReceiver".equals(packageName)) {
 					installed.add(map);
 				}
 			}
@@ -203,9 +209,9 @@ public class MyAppActivity extends Activity {
 			myAppLoading.setText(getResources().getString(R.string.local_list_empty));
 		} else {// 如果有数据则隐藏列表为空的提示，并加载数据
 			myAppLoading.setVisibility(View.GONE);
-
 			appsGridView.setAdapter(new MyAppsDataAdapter(context, list, "series"));
 			appsGridView.setNumColumns(4);
+			Log.i(TAG,"setSeriesGrid set onAppItemClick");
 			appsGridView.setOnItemClickListener(mOnAppItemClick);
 		}
 	}
@@ -229,12 +235,15 @@ public class MyAppActivity extends Activity {
 	OnItemClickListener mOnAppItemClick = new OnItemClickListener() {
 		public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
 			MyAppsDataAdapter adapter = (MyAppsDataAdapter) arg0.getAdapter();
+			Log.i(TAG,"onAppItemClick appmode = " + appmode);
 			map = (Map<String, Object>) adapter.getItem(arg2);
 			if (appmode.equals(APP_BROWSER)) {
-				// String packageName = (String) map.get("package");
-				// Constants.openAPP(MyAppActivity.this, packageName);
-				AppManagerSubMenuPop appManagerSubMenuPop = new AppManagerSubMenuPop(mcontext, map, adapter);
-				appManagerSubMenuPop.showPopupWindow(arg1, 176, -202);
+				 String mode = "mode";
+				 String packageName = (String) map.get("package");
+				 CommonUtil.openAPP(MyAppActivity.this, packageName,mode);
+				//AppManagerSubMenuPop appManagerSubMenuPop = new AppManagerSubMenuPop(mcontext, map, adapter);
+				//appManagerSubMenuPop.showPopupWindow(arg1, 176, -202);
+				MyAppActivity.this.finish();
 			} else {
 				curPosition = arg2;
 				AppManagerSubMenuPop appManagerSubMenuPop = new AppManagerSubMenuPop(mcontext, map, adapter);

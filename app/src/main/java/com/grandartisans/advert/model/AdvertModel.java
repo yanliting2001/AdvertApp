@@ -1,5 +1,6 @@
 package com.grandartisans.advert.model;
 
+import com.grandartisans.advert.model.entity.post.ActiveCheckParamsBean;
 import com.grandartisans.advert.model.entity.post.AdvertParameter;
 import com.grandartisans.advert.model.entity.post.AppUpgradeParameter;
 import com.grandartisans.advert.model.entity.post.EventParameter;
@@ -50,5 +51,13 @@ public class AdvertModel implements IAdvertMoel {
     @Override
     public Observable getAdvertWeather(AdvertParameter parameter) {
         return DevRing.httpManager().getService(AdvertApiService.class).getAdvertWeather(parameter);
+    }
+    @Override
+    public Observable activeCheck(ActiveCheckParamsBean parameter){
+        return DevRing.httpManager().getService(AdvertApiService.class).activeCheck(parameter);
+    }
+    @Override
+    public Observable systemUpgrade(String version,String guid,String hwver,String mac,String pt,String chid){
+        return DevRing.httpManager().getService(AdvertApiService.class).systemUpgrade(version,guid,hwver,mac,pt,chid);
     }
 }

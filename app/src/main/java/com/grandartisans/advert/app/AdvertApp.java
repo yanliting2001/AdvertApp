@@ -47,7 +47,7 @@ public class AdvertApp extends Application {
         sContext = getApplicationContext();
 
 
-
+        initApps();
 
 
         x.Ext.init(this);//Xutils初始化,这一步之后, 我们就可以在任何地方使用x.app()来获取Application的实例了.

@@ -162,7 +162,19 @@ public class Utils {
      */
     public static String installSilently(String path) {
         // 通过命令行来安装APK
-        String[] args = { "pm", "install", "-r", path };
+        FileOperator.copyFileToDir(path,"/sdcard");
+        Process su;
+        try {
+            su = Runtime.getRuntime().exec("/system/xbin/su");
+            //此时已经获取到root权限，可进一步执行所需操作
+            String cmd = "pm install -r /sdcard/upgrade.apk"  + "\n" + "exit\n";
+		    su.getOutputStream().write(cmd.getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
+        /*
+        String[] args = { "/system/xbin/su","pm", "install", "-r", path };
         String result = "";
         // 创建一个操作系统进程并执行命令行操作
         ProcessBuilder processBuilder = new ProcessBuilder(args);
@@ -204,5 +216,6 @@ public class Utils {
             }
         }
         return result;
+        */
     }
 }

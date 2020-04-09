@@ -44,7 +44,7 @@ public class PackageState{
 	
 	public void unregisterPackageListener(Context pcontext) {
 		
-		if (mPackageStateReceiver == null) {
+		if (mPackageStateReceiver != null) {
 			mcontext.unregisterReceiver(mPackageStateReceiver);
 		}		
 		

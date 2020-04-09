@@ -1,6 +1,7 @@
 package com.grandartisans.advert.receiver;
 
 import com.grandartisans.advert.activity.MediaPlayerActivity;
+import com.grandartisans.advert.service.DownLoadService;
 import com.grandartisans.advert.service.RemoteService;
 import com.grandartisans.advert.service.UpgradeService;
 import com.ljy.devring.DevRing;
@@ -43,16 +44,21 @@ public class BootReceiver extends BroadcastReceiver {
 			DevRing.cacheManager().spCache("TrafficFlow").put("value",0L);
 			Intent intentService = new Intent(context,UpgradeService.class);
 			context.startService(intentService);
+
+
 		}else if(action.equals("android.net.conn.CONNECTIVITY_CHANGE")){
-			/*
+
 			NetworkInfo networkInfo = intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
 			ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 			NetworkInfo activeNetInfo = connectivityManager.getActiveNetworkInfo();
 			if(activeNetInfo!=null && activeNetInfo.isConnected() ){
 				Intent intentService = new Intent(context,UpgradeService.class);
 				context.startService(intentService);
+
+				Intent i = new Intent(context,DownLoadService.class);
+				context.startService(i);
 			}
-			*/
+
 		}
 	}
 }

@@ -8,6 +8,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.locks.ReentrantLock;
 
 import android.app.Activity;
@@ -18,6 +19,7 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -55,6 +57,7 @@ import com.grandartisans.advert.dbutils.dbutils;
 import com.grandartisans.advert.interfaces.AdListEventListener;
 import com.grandartisans.advert.interfaces.ElevatorDoorEventListener;
 import com.grandartisans.advert.interfaces.ElevatorEventListener;
+import com.grandartisans.advert.interfaces.IMultKeyTrigger;
 import com.grandartisans.advert.interfaces.RecorderEventListener;
 import com.grandartisans.advert.model.AdvertModel;
 import com.grandartisans.advert.model.PlayerCmd;
@@ -66,22 +69,27 @@ import com.grandartisans.advert.model.entity.post.RecorderUpdateEventData;
 import com.grandartisans.advert.model.entity.post.ReportEventData;
 import com.grandartisans.advert.model.entity.res.AdvertInfoData;
 import com.grandartisans.advert.model.entity.res.AdvertWeatherData;
+import com.grandartisans.advert.model.entity.res.NetworkOnOffData;
 import com.grandartisans.advert.model.entity.res.PowerOnOffData;
 import com.grandartisans.advert.model.entity.res.ReportInfoResult;
 import com.grandartisans.advert.model.entity.res.TemplateReginVo;
 import com.grandartisans.advert.model.entity.res.TemplateRegion;
 import com.grandartisans.advert.model.entity.res.TerminalAdvertPackageVo;
+import com.grandartisans.advert.receiver.AlarmReceiver;
 import com.grandartisans.advert.recoder.RecorderManager;
 import com.grandartisans.advert.server.M3u8Server;
 import com.grandartisans.advert.service.CameraService;
 import com.grandartisans.advert.service.NetworkService;
 import com.grandartisans.advert.service.UpgradeService;
+import com.grandartisans.advert.utils.ALFu700ProjectManager;
 import com.grandartisans.advert.utils.AdPlayListManager;
+import com.grandartisans.advert.utils.AlarmEventManager;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.ElevatorDoorManager;
 import com.grandartisans.advert.utils.ElevatorStatusManager;
 
 import com.grandartisans.advert.R;
+import com.grandartisans.advert.utils.MyMultKeyTrigger;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
 import com.grandartisans.advert.utils.ViewUtils;
@@ -173,6 +181,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int RECORDER_PAUSE_CMD = 100034;
 
 	private final int RECORDER_FINISHED_CMD = 100035;
+	private final int SET_NETWORK_ALARM_CMD = 100036;
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
@@ -211,6 +220,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private Long mPlayingAdType = 2L;
 
 	private boolean mContinuePlayWhenScreenOff = false;
+
+	private AlarmReceiver mAlarmReceiver = null;
+	private ALFu700ProjectManager mProjectManager = null;
+
+	private AlarmEventManager mAlarmEventManager = null;
 
 	private  Api encApi=null;
 	private Handler mPlayerHandler = new Handler() {
@@ -258,7 +272,14 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					onPauseEvent();
 					break;
 				case SET_POWER_ALARM_CMD:
-					SetPowerAlarm();
+					if(mAlarmEventManager.getPowerAlarmStatus()==false) {
+						mAlarmEventManager.SetPowerAlarm(0, 0);
+					}
+					break;
+				case SET_NETWORK_ALARM_CMD:
+					if(mAlarmEventManager.getNetWorkAlarmStatus()==false) {
+						mAlarmEventManager.SetNetworkAlarm(-1, -1);
+					}
 					break;
 				case STOP_PUSH_CMD:
                     break;
@@ -325,49 +346,21 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
     ReentrantLock lock = new ReentrantLock();
     //开线程更新UI
-	private void SetPowerAlarm(){
-			//initPowerOffAlarm(22,00,00);// 设置定时关机提醒
-		long startTime = DevRing.cacheManager().spCache("PowerAlarm").getLong("startTime",0);
-		long endTime = DevRing.cacheManager().spCache("PowerAlarm").getLong("endTime",0);
-		int startHour = 07;
-		int startMinute = 00;
-		int startSecond = 00;
-		int endHour = 21;
-		int endMinute = 30;
-		int endSecond = 00;
-		if(startTime!=0) {
-			SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
-			String t1 = format.format(startTime);
-			startHour = Integer.valueOf(t1.substring(0, 2));
-			startMinute = Integer.valueOf(t1.substring(3, 5));
-			startSecond = Integer.valueOf(t1.substring(6, 8));
-		}
-		if(endTime!=0){
-			SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
-			String t1 = format.format(endTime);
-			endHour = Integer.valueOf(t1.substring(0, 2));
-			endMinute = Integer.valueOf(t1.substring(3, 5));
-			endSecond = Integer.valueOf(t1.substring(6, 8));
-		}
 
-		initPowerOffAlarm(endHour,endMinute,endSecond);// 设置定时关机提醒
-
-		initPowerOnAlarm(startHour,startMinute,startSecond);//设置定时开机提醒
-
-	}
 
 	Runnable runableSetPowerOff = new Runnable() {
 		@Override
 		public void run() {
 			lock.lock();
+			//CommonUtil.sleep(MediaPlayerActivity.this);
+			if(mProjectManager!=null)
+				mProjectManager.SleepProject();
             if(isPowerOff==false) {
 				isPowerOff = true;
 				setScreenOff(false);
 				mHandler.sendEmptyMessageDelayed(START_REPORT_EVENT_CMD,mReportEventTimeInterval);
 			}
             lock.unlock();
-
-			//initPowerOnAlarm(13,10,00);
 		}
 	};
 
@@ -376,6 +369,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		public void run() {
 			lock.lock();
 			if(isPowerOff==true) {
+				if(mProjectManager!=null)
+					mProjectManager.WakeUpProject();
+				mAlarmEventManager.setPowerAlarmStatus(false);
+				mAlarmEventManager.setNetWorkAlarmStatus(false);
+				mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*5);
+				mHandler.sendEmptyMessageDelayed(SET_NETWORK_ALARM_CMD,1000*60*5);
 				isPowerOff = false;
 				setScreen(1);
 				onVideoPlayCompleted(false);
@@ -481,10 +480,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		setContentView(R.layout.activity_surface_player);
 		Log.i(TAG,"onCreate");
-        View decorView = getWindow().getDecorView();
-        int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN;
-        decorView.setSystemUiVisibility(uiOptions);
+        initBaseView();
+
+		mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
+		mProjectManager.openProject();
+
         /*
 		AdvertApp app = (AdvertApp) getApplication();
 		app.initApps();
@@ -498,8 +498,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		mPlayListManager.registerListener(mAdListEventListener);
 		mPlayListManager.init(this);
 
+		mAlarmEventManager = AlarmEventManager.getInstance(getApplicationContext());
+
 		handler = new Handler();
-		mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*10);
+		mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*5);
+		mHandler.sendEmptyMessageDelayed(SET_NETWORK_ALARM_CMD,1000*60*5);
 		if(SystemInfoManager.isClassExist("android.prj.PrjManager")) {
 			prjmanager = PrjSettingsManager.getInstance(this);
 		}
@@ -546,24 +549,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		*/
 		//mHandler.sendEmptyMessage(START_REPORT_PLAYSTATUS_CMD);
 	}
-
-	private void initView(){
-        relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
+	private void initBaseView(){
+		relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
 		surface = (SurfaceView) findViewById(R.id.surface);
 		mImageMain =(ImageView)findViewById(R.id.image_main);
 		mImageMain.setVisibility(View.INVISIBLE);
 		surface_record = (SurfaceView) findViewById(R.id.surfaceview_record);
-		surfaceHolder_record = surface_record.getHolder();
-
-		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
-		surfaceHolder.addCallback(this);
-        surfaceHolder.setFormat(PixelFormat.RGBX_8888);
-		//surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-
-
-
-		initAdView();
-
 		marqueeTextView = (MarqueeTextView) findViewById(R.id.tv_scroll);
 		marqueeTextView.setVisibility(View.GONE);
 		linearLayoutText = (LinearLayout) findViewById(R.id.ll_info);
@@ -573,6 +564,26 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		textViewTime.setVisibility(View.GONE);
 		textViewTemp = (TextView) findViewById(R.id.tv_temperature);
 		textViewTempCode = (TextView) findViewById(R.id.tv_temperature_code);
+
+
+	}
+	private void initView(){
+		View decorView = getWindow().getDecorView();
+		int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+				| View.SYSTEM_UI_FLAG_FULLSCREEN;
+		decorView.setSystemUiVisibility(uiOptions);
+		/*
+		Intent intent = new Intent("android.intent.always.hideNaviBar");
+		intent.putExtra("always",true);//true为一直隐藏，false为取消一直隐藏
+		sendBroadcast(intent);
+		*/
+
+		surfaceHolder_record = surface_record.getHolder();
+		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
+		surfaceHolder.addCallback(this);
+        surfaceHolder.setFormat(PixelFormat.RGBX_8888);
+		//surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+		initAdView();
 
 		AdvertInfoData data = mPlayListManager.getAdvertInfo();
 		showAdvertInfo(data);
@@ -723,10 +734,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		String status = DevRing.cacheManager().spCache("PowerStatus").getString("status","on");
 		if(status.equals("off")){
 			handler.post(runableSetPowerOff);
+		}else{
+			mProjectManager.WakeUpProject();
 		}
         onResumeEvent();
 		if(activate_started == false) {
-			mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD, 3 * 1000);
+			mHandler.sendEmptyMessage(START_PLAYER_CMD);
 			if(mMode.equals("GAPEDS4A4") || mMode.equals("GAPEDS4A6")||
 					mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
 				mHandler.sendEmptyMessageDelayed(START_OPEN_SERIALPORT, 5 * 1000);
@@ -738,7 +751,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			activate_started =true;
 		}
 		else{
-			mHandler.sendEmptyMessage(START_PLAYER_CMD);
+			mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD,1000);
 			if(mElevatorDoorManager!=null)
 				mElevatorDoorManager.openSerialPort();
 		}
@@ -769,20 +782,21 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	protected void onPause() {
 		super.onPause();
 		Log.i(TAG,"onPause");
-
+		unregisterAlarmReceiver();
 		//mHandler.sendEmptyMessageDelayed(ON_PAUSE_EVENT_CMD,1000);
 	}
 	private void onPauseEvent(){
 		Log.i(TAG,"onPauseEvent");
 		mHandler.removeMessages(START_PLAYER_CMD);
-
+		mHandler.removeMessages(SHOW_NEXT_ADVERT_CMD);
+		mHandler.removeMessages(UPDATE_IMAGE_AD_CMD);
 		if(mMode.equals("GAPEDS4A4") || mMode.equals("GAPEDS4A6")||
 				mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
 			mHandler.removeMessages(START_OPEN_SERIALPORT);
 		}
 		if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
 		onPlayerCmd("release","");
-		surface = null;
+		//surface = null;
 		surfaceHolder = null;
 		if ( mCameraService != null && mCameraService.isRecording()) {
 			CameraService.cameraNeedStop = true;
@@ -795,6 +809,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		super.onResume();
 		Log.i(TAG,"onResume");
 		initView();
+		registerAlarmReceiver();
+	}
+
+	private void registerAlarmReceiver(){
+		mAlarmReceiver = new AlarmReceiver();
+		IntentFilter filter =  new IntentFilter();
+		filter.addAction("POWER_OFF_ALARM");
+		filter.addAction("POWER_ON_ALARM");
+		filter.addAction("SET_WLAN_ON_ALARM");
+		filter.addAction("SET_WLAN_OFF_ALARM");
+		registerReceiver(mAlarmReceiver,filter);
+	}
+	private void unregisterAlarmReceiver(){
+		unregisterReceiver(mAlarmReceiver);
 	}
 
 	private void onResumeEvent(){
@@ -817,15 +845,51 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD, 30 * 1000);
 		}
 	}
+	private IMultKeyTrigger multKeyTrigger= new MyMultKeyTrigger(this);
+	Handler h = new Handler(){
+		public void handleMessage(android.os.Message msg) {
+			switch (msg.what) {
+				default:
+					break;
+			}
+		};
+	};
+	public boolean handlerMultKey(int keyCode, KeyEvent event) {
+		boolean vaildKey = false;
+		if ((keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+				|| keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)
+				&& multKeyTrigger.allowTrigger()) {
+			// 是否是有效按键输入
+			vaildKey = multKeyTrigger.checkKey(keyCode, event.getEventTime());
+			// 是否触发组合键
+			if (vaildKey && multKeyTrigger.checkMultKey()) {
+				//执行触发
+				multKeyTrigger.onTrigger();
+				//触发完成后清除掉原先的输入
+				multKeyTrigger.clearKeys();
+				return true;
+			}
+
+		}
+		return false;
+	}
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		// TODO Auto-generated method stub
 		Log.i(TAG,"onKeyDown keyCode = " + keyCode);
+		if(event.getAction() == KeyEvent.ACTION_DOWN){
+			if(handlerMultKey(keyCode,event)){
+				startMyApp(MediaPlayerActivity.this,"app_browser");
+				return true;
+			}
+		}
+
 		if(keyCode == KeyEvent.KEYCODE_MENU) {
 			menuKeyPressedCount +=1;
 			startSysSetting(MediaPlayerActivity.this);
 		}else if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
 			//startMyApp(MediaPlayerActivity.this,"app_browser");
+			startSysSetting(MediaPlayerActivity.this);
 		}
 		else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
 			return true;
@@ -874,11 +938,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		mElevatorDoorManager.registerListener(mElevatorDoorEventListener);
 	}
 	private void startSysSetting(Context context) {
-		Intent intent = new Intent(Intent.ACTION_MAIN);
-		intent.addCategory(Intent.CATEGORY_LAUNCHER);
-		ComponentName cn = new ComponentName("com.projector.settings", "com.txbox.settings.launcher.systemsettings.SystemSettingsMain");
-		intent.setComponent(cn);
-		context.startActivity(intent);
+		Intent intent = new Intent(context, SystemSettingsMain.class);
+		startActivity(intent);
 	}
 	private void savePlayRecord(Long posid) {
 		PlayingAdvert item = mPlayListManager.getPlayingAd(posid);
@@ -1066,131 +1127,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			}
 		}
 	}
-	private void initPowerOffAlarm(int hour,int minute,int second) {
-		Date date = new Date();
-		Calendar cal = Calendar.getInstance();
-		//cal.setTimeZone(TimeZone.getTimeZone("GTM+8:00"));
-		cal.setTime(date);
-		cal.set(Calendar.HOUR_OF_DAY, hour);
-		cal.set(Calendar.SECOND, second);
-		cal.set(Calendar.MINUTE, minute);
-		cal.set(Calendar.MILLISECOND, 00);
-
-		SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		Date d1=new Date(cal.getTimeInMillis());
-		String t1=format.format(d1);
-		Log.i(TAG,"Alarm POWER OFF time = " + t1);
-		Intent intent=new Intent("POWER_OFF_ALARM");
-		PendingIntent pi= PendingIntent.getBroadcast(this, 0, intent,0);
-		//设置一个PendingIntent对象，发送广播
-		AlarmManager am=(AlarmManager)getSystemService(ALARM_SERVICE);
-		//获取AlarmManager对象
-		//am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-		am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-	}
 
 
-	private void initPowerOnAlarm(int hour,int minute,int second) {
-		Date date = new Date();
-		Calendar cal = Calendar.getInstance();
-		//cal.setTimeZone(TimeZone.getTimeZone("GTM+8:00"));
-		cal.setTime(date);
-		cal.add(Calendar.DAY_OF_MONTH,1);
-		cal.set(Calendar.HOUR_OF_DAY, hour);
-		cal.set(Calendar.SECOND, second);
-		cal.set(Calendar.MINUTE, minute);
-		cal.set(Calendar.MILLISECOND, 00);
-
-		SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		Date d1=new Date(cal.getTimeInMillis());
-		String t1=format.format(d1);
-		Log.i(TAG,"Alarm POWER ON time = " + t1);
-		Intent intent=new Intent("POWER_ON_ALARM");
-		PendingIntent pi= PendingIntent.getBroadcast(this, 0, intent,0);
-		//设置一个PendingIntent对象，发送广播
-		AlarmManager am=(AlarmManager)getSystemService(ALARM_SERVICE);
-		//获取AlarmManager对象
-		//am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-        am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-	}
-
-	private void ResetPowerOnAlarm(long time){
-		/*
-		Intent intent=new Intent("POWER_ON_ALARM");
-		PendingIntent pi= PendingIntent.getBroadcast(this, 0, intent,0);
-		//设置一个PendingIntent对象，发送广播
-		AlarmManager am=(AlarmManager)getSystemService(ALARM_SERVICE);
-		//获取AlarmManager对象
-		//am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-		am.cancel(pi);
-		*/
-
-		SimpleDateFormat format=new SimpleDateFormat("HH:mm:ss");
-		String t1=format.format(time);
-
-		int hour = Integer.valueOf(t1.substring(0,2));
-		int minute = Integer.valueOf(t1.substring(3,5));
-		int second = Integer.valueOf(t1.substring(6,8));
-
-		Date date = new Date();
-		Calendar cal = Calendar.getInstance();
-		//cal.setTimeZone(TimeZone.getTimeZone("GTM+8:00"));
-		Log.i(TAG,"Alarm POWER ON time = " + t1 + "hour = " + hour + "minute = " + minute + "second = " + second  + "date = " + date.toString());
-		cal.setTime(date);
-		cal.add(Calendar.DAY_OF_MONTH,1);
-		cal.set(Calendar.HOUR_OF_DAY, hour);
-		cal.set(Calendar.SECOND, second);
-		cal.set(Calendar.MINUTE, minute);
-		cal.set(Calendar.MILLISECOND, 00);
-
-		Intent intent1=new Intent("POWER_ON_ALARM");
-		PendingIntent pi1= PendingIntent.getBroadcast(this, 0, intent1,0);
-		//设置一个PendingIntent对象，发送广播
-		AlarmManager am1=(AlarmManager)getSystemService(ALARM_SERVICE);
-		//获取AlarmManager对象
-		//am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-		am1.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi1);
-	}
-	private void ResetPowerOffAlarm(long time){
-
-		/*
-		Intent intent=new Intent("POWER_OFF_ALARM");
-		PendingIntent pi= PendingIntent.getBroadcast(this, 0, intent,0);
-		//设置一个PendingIntent对象，发送广播
-		AlarmManager am=(AlarmManager)getSystemService(ALARM_SERVICE);
-		//获取AlarmManager对象
-		//am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-		am.cancel(pi);
-		*/
-
-
-		SimpleDateFormat format=new SimpleDateFormat("HH:mm:ss");
-		String t1=format.format(time);
-
-		int hour = Integer.valueOf(t1.substring(0,2));
-		int minute = Integer.valueOf(t1.substring(3,5));
-		int second = Integer.valueOf(t1.substring(6,8));
-		Date date = new Date();
-		Calendar cal = Calendar.getInstance();
-		//cal.setTimeZone(TimeZone.getTimeZone("GTM+8:00"));
-		Log.i(TAG,"Alarm POWER OFF time = " + t1 + "hour = " + hour + "minute = " + minute + "second = " + second  + "date = " + date.toString());
-		cal.setTime(date);
-		cal.set(Calendar.HOUR_OF_DAY, hour);
-		cal.set(Calendar.SECOND, second);
-		cal.set(Calendar.MINUTE, minute);
-		cal.set(Calendar.MILLISECOND, 00);
-
-		Intent intent1=new Intent("POWER_OFF_ALARM");
-		PendingIntent pi1= PendingIntent.getBroadcast(this, 0, intent1,0);
-
-
-		//设置一个PendingIntent对象，发送广播
-		AlarmManager am1=(AlarmManager)getSystemService(ALARM_SERVICE);
-		//获取AlarmManager对象
-		//am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-		am1.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi1);
-
-	}
 	/*设置当前时间*/
 	private void setCurrentTime(){
 		if(System.currentTimeMillis()<0){
@@ -1271,14 +1209,22 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			case AppEvent.POWER_SET_ALARM_EVENT:
 				if ("POWER_OFF_ALARM".equals(event.getData())) {
 					handler.post(runableSetPowerOff);
+					DevRing.cacheManager().spCache("PowerStatus").put("status","off");
 
 				}else if("POWER_ON_ALARM".equals(event.getData())){
-					saveCurrentTime();
+					DevRing.cacheManager().spCache("PowerStatus").put("status","on");
+					handler.post(runableSetPowerOn);
+					//saveCurrentTime();
 					if (mCameraService != null && mCameraService.isRecording()) {
 						CameraService.cameraNeedStop = true;
 						mCameraService.cameraRecordStop();
 					}
-					CommonUtil.reboot(MediaPlayerActivity.this);
+					//CommonUtil.wakeup(MediaPlayerActivity.this);
+					//CommonUtil.reboot(MediaPlayerActivity.this);
+				}else if("SET_WLAN_ON_ALARM".equals(event.getData())){
+					CommonUtil.runCmd("ifconfig eth0 up");
+				}else if("SET_WLAN_OFF_ALARM".equals(event.getData())){
+					CommonUtil.runCmd("ifconfig eth0 down");
 				}
 				break;
 			case AppEvent.SET_POWER_OFF:
@@ -1289,12 +1235,18 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				DevRing.cacheManager().spCache("PowerStatus").put("status","on");
 				handler.post(runableSetPowerOn);
 				break;
+			/*
 			case AppEvent.POWER_UPDATE_ALARM_EVENT:
 				PowerOnOffData powerOnOffData = (PowerOnOffData)event.getData();
 				mHandler.removeMessages(SET_POWER_ALARM_CMD);
-				ResetPowerOffAlarm(powerOnOffData.getEndTime());
-				ResetPowerOnAlarm(powerOnOffData.getStartTime());
+				SetPowerAlarm(powerOnOffData.getStartTime(),powerOnOffData.getEndTime());
 				break;
+			case AppEvent.NETWORK_ONOFF_ALARM_EVENT:
+				NetworkOnOffData networkOnOffData = (NetworkOnOffData)event.getData();
+				mHandler.removeMessages(SET_NETWORK_ALARM_CMD);
+				SetNetworkAlarm(networkOnOffData.getNetworkStartTime(),networkOnOffData.getNetworkEndTime());
+				break;
+			*/
 			default:
 				break;
 		}

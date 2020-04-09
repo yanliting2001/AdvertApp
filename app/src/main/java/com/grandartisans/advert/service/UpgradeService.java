@@ -69,6 +69,7 @@ import com.grandartisans.advert.model.entity.res.DateScheduleVo;
 import com.grandartisans.advert.model.entity.res.HeartBeatData;
 import com.grandartisans.advert.model.entity.res.HeartBeatResult;
 import com.grandartisans.advert.model.entity.res.InfoStatus;
+import com.grandartisans.advert.model.entity.res.NetworkOnOffData;
 import com.grandartisans.advert.model.entity.res.PositionVer;
 import com.grandartisans.advert.model.entity.res.PowerOnOffData;
 import com.grandartisans.advert.model.entity.res.ReportInfoResult;
@@ -83,6 +84,7 @@ import com.grandartisans.advert.model.entity.res.UpgradeHttpResult;
 import com.grandartisans.advert.model.entity.res.VolumeData;
 import com.grandartisans.advert.utils.AdPlayListManager;
 import com.grandartisans.advert.utils.AdvertVersion;
+import com.grandartisans.advert.utils.AlarmEventManager;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.EncryptUtil;
 import com.grandartisans.advert.utils.FileOperator;
@@ -147,7 +149,7 @@ public class UpgradeService extends Service {
     private List<PositionVer> mAdverPositions = new ArrayList<PositionVer>();
 
     private boolean isPowerAlarmSet = false;
-
+    private boolean isNetworkAlarmSet = false;
     private OnUsbState onUsb = null;
 
     private Handler handler;
@@ -181,6 +183,7 @@ public class UpgradeService extends Service {
     private AdPlayListManager mPlayListManager = null;
     private PrjSettingsManager prjmanager = null;
     private Long mTemplateId =0L;
+    private AlarmEventManager mAlarmEventManager = null;
 
     private LogcatHelper logHelper =null;
     private String getUSBUpgradeFile(String usbPath,String fileName){
@@ -597,6 +600,8 @@ public class UpgradeService extends Service {
         if(SystemInfoManager.isClassExist("android.prj.PrjManager")) {
             prjmanager = PrjSettingsManager.getInstance(this);
         }
+
+        mAlarmEventManager = AlarmEventManager.getInstance(getApplicationContext());
         initUSB(getApplicationContext());
         uploadLog(getApplicationContext());
         appUpgrade(getApplicationContext());
@@ -610,7 +615,7 @@ public class UpgradeService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        CommonUtil.reboot(getApplicationContext());
+        //CommonUtil.reboot(getApplicationContext());
     }
 
     private void LogcatDumpStart(){
@@ -974,6 +979,8 @@ public class UpgradeService extends Service {
                                 }
                                 else if(dataItem.getEventID().equals("1007")) {
                                     List<PowerOnOffData> list = new ArrayList<>();
+                                    RingLog.d(TAG,"eventId = " + dataItem.getEventID());
+                                    RingLog.d(TAG,"eventData = " + dataItem.getEventData().toString());
                                     if(dataItem.getEventData().getClass().equals(list.getClass())){
                                         String eventDataString = dataItem.getEventData().toString();
                                         Gson gson = new Gson();
@@ -983,21 +990,16 @@ public class UpgradeService extends Service {
                                         if (list != null && list.size() > 0) {
                                             PowerOnOffData powerOnOffData = list.get(0);
                                             RingLog.d(TAG,"poweronoff startTime= " + powerOnOffData.getStartTime() + "endTime = " + powerOnOffData.getEndTime());
-                                            long startTime = DevRing.cacheManager().spCache("PowerAlarm").getLong("startTime",0);
-                                            long endTime = DevRing.cacheManager().spCache("PowerAlarm").getLong("endTime",0);
-                                            if(endTime!=powerOnOffData.getEndTime()){
-                                                DevRing.cacheManager().spCache("PowerAlarm").put("endTime",powerOnOffData.getEndTime());
-                                                isPowerAlarmSet = false;
+                                            long startTime = mAlarmEventManager.getPowerAlarmStartTime();
+                                            long endTime = mAlarmEventManager.getPowerAlarmEndTime();
+                                            if(endTime!=powerOnOffData.getEndTime() || startTime!=powerOnOffData.getStartTime()){
+                                                //isPowerAlarmSet = false;
+                                                mAlarmEventManager.setPowerAlarmStatus(false);
                                             }
-                                            if(startTime!=powerOnOffData.getStartTime()){
-                                                DevRing.cacheManager().spCache("PowerAlarm").put("startTime",powerOnOffData.getStartTime());
-
-                                                isPowerAlarmSet = false;
-                                            }
-                                            if(isPowerAlarmSet==false){
-
-                                                EventBus.getDefault().post(new AppEvent(AppEvent.POWER_UPDATE_ALARM_EVENT, powerOnOffData));
-                                                isPowerAlarmSet = true;
+                                            if(mAlarmEventManager.getPowerAlarmStatus()==false){
+                                                mAlarmEventManager.SetPowerAlarm(powerOnOffData.getStartTime(),powerOnOffData.getEndTime());
+                                                //EventBus.getDefault().post(new AppEvent(AppEvent.POWER_UPDATE_ALARM_EVENT, powerOnOffData));
+                                                //isPowerAlarmSet = true;
                                             }
                                         }
                                     }
@@ -1069,6 +1071,34 @@ public class UpgradeService extends Service {
                                     }
                                     mHandler.removeMessages(PRINT_INFO_CMD);
                                     mHandler.sendEmptyMessageDelayed(PRINT_INFO_CMD, 1000*5);
+                                }else if(dataItem.getEventID().equals("1014")){/*联网时间*/
+                                    List<NetworkOnOffData> list = new ArrayList<>();
+                                    RingLog.d(TAG,"eventId = " + dataItem.getEventID());
+                                    RingLog.d(TAG,"eventData = " + dataItem.getEventData().toString());
+                                    if(dataItem.getEventData().getClass().equals(list.getClass())) {
+                                        String eventDataString = dataItem.getEventData().toString();
+                                        Gson gson = new Gson();
+                                        if (eventDataString != null) {
+                                            list = gson.fromJson(eventDataString, new TypeToken<List<NetworkOnOffData>>() {}.getType());
+                                        }
+
+                                        if (list != null && list.size() > 0) {
+                                            NetworkOnOffData networkOnOffData = list.get(0);
+                                            RingLog.d(TAG, "networkon startTime= " + networkOnOffData.getNetworkStartTime() + "endTime = " + networkOnOffData.getNetworkEndTime());
+                                            long startTime = mAlarmEventManager.getNetworkAlarmStartTime();
+                                            long endTime = mAlarmEventManager.getNetworkAlarmEndtime();
+                                            RingLog.d(TAG, "networkon saved startTime= "+startTime + "endTime = " + endTime);
+                                            if (endTime != networkOnOffData.getNetworkEndTime() || startTime != networkOnOffData.getNetworkStartTime()) {
+                                                isNetworkAlarmSet = false;
+                                                mAlarmEventManager.setPowerAlarmStatus(false);
+                                            }
+                                            if (mAlarmEventManager.getPowerAlarmStatus() == false) {
+                                                //EventBus.getDefault().post(new AppEvent(AppEvent.NETWORK_ONOFF_ALARM_EVENT, networkOnOffData));
+                                                //isNetworkAlarmSet = true;
+                                                mAlarmEventManager.SetNetworkAlarm(networkOnOffData.getNetworkStartTime(),networkOnOffData.getNetworkEndTime());
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

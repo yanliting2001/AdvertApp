@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 import android_serialport_api.SerialPort;
 
@@ -80,7 +81,30 @@ public class SerialPortUtils {
                 outputStream.write('\n');
                 //outputStream.write('\r'+'\n');
                 outputStream.flush();
-                Log.i(TAG, "sendSerialPort: 串口数据发送成功");
+                Log.i(TAG, "sendSerialPort: 串口数据发送成功:" + Arrays.toString(sendData));
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "sendSerialPort: 串口数据发送失败："+e.toString());
+        }
+
+    }
+
+    /**
+     * 发送串口指令（Bytes）
+     * @param sendData Bytes数据指令
+     */
+    public void sendSerialPort(byte[] sendData){
+        Log.i(TAG, "sendSerialPort: 发送数据");
+
+        try {
+            //byte[] sendData = data.getBytes(); //string转byte[]
+            this.data_ = new String(sendData); //byte[]转string
+            if (sendData.length > 0) {
+                outputStream.write(sendData);
+                //outputStream.write('\n');
+                //outputStream.write('\r'+'\n');
+                outputStream.flush();
+                Log.i(TAG, "sendSerialPort: 串口数据发送成功:" + Arrays.toString(sendData));
             }
         } catch (IOException e) {
             Log.e(TAG, "sendSerialPort: 串口数据发送失败："+e.toString());
@@ -103,7 +127,13 @@ public class SerialPortUtils {
                 int size=0; //读取数据的大小
                 try {
                     size = inputStream.read(buffer,0,1);
+                    Log.i(TAG, "run recv data size = " + size);
+                    for(int i=0;i<size;i++) {
+                        Log.i(TAG, "run recv data：" + buffer[i]);
+                    }
                     if(size==1) {
+                       // Log.i(TAG, "run recv data：" + buffer[0]);
+                        /*
                         if(buffer[0]==0x59) {
                             while (size < 9) {
                                 size += inputStream.read(buffer, size, 9 - size);
@@ -114,9 +144,11 @@ public class SerialPortUtils {
                                 if (onDataReceiveListener != null)
                                     onDataReceiveListener.onDataReceive(buffer, size);
                             }
+
                         }else{
                             Log.i(TAG, "run: data head ：" + buffer[0] + "is error");
                         }
+                        */
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "run: 数据读取异常：" +e.toString());

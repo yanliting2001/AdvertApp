@@ -13,6 +13,7 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Environment;
@@ -29,18 +30,24 @@ import com.grandartisans.advert.R;
 import com.grandartisans.advert.activity.MediaPlayerActivity;
 import com.ljy.devring.other.RingLog;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static android.content.Context.TELEPHONY_SERVICE;
@@ -322,8 +329,28 @@ public class CommonUtil {
         }
         return macSerial;
     }
+    public static String getDeviceId() {
+        String serialNo = null; //CPU唯一序列号
+        try{
+            BufferedReader br = new BufferedReader(new FileReader("/proc/cpuinfo"));
+            String str = null;
+            do{
+                str = br.readLine();
+                if(str != null && str.toLowerCase().contains("serial")){
+                    serialNo = str;
+                    if(serialNo.indexOf(":") > 0){
+                        serialNo = serialNo.substring(serialNo.indexOf(":")+1,serialNo.length()).trim();
+                    }
+                    break;
+                }
+            }while(str != null);
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+        return serialNo;
+    }
 
-    private static String get(String prop, String defaultvalue) {
+    private static String getProperty(String prop, String defaultvalue) {
         Method get = null;
         String value = defaultvalue;
         try {
@@ -340,7 +367,7 @@ public class CommonUtil {
         return value;
     }
 
-    private static boolean set(String prop, String value) {
+    private static boolean setProperty(String prop, String value) {
         Method set = null;
         try {
             if (null == set) {
@@ -357,49 +384,63 @@ public class CommonUtil {
     }
 
     public static boolean setScreenVideoMode(String mode){
-        return set("tv.default.screen.mode",mode);
+        return setProperty("tv.default.screen.mode",mode);
     }
 
     public static String getVersionInfo(){
         String version="";
-        version = get("ro.build.version.versioncode","");
+        version = getProperty("ro.build.display.id","");
         if(version!=null && version.length()>0){
-            int start = version.indexOf("_V");
+            int start = version.indexOf(" ");
             int index = version.lastIndexOf("_");
             if(start >=0 && index >=0){
-                version = version.substring(start+2, index);
+                version = version.substring(start+1, index);
             }
+            if(version!=null) version = version.replace("-","");
         }
         return version;
     }
     public static String getModel() {
-        String mode = get("ro.product.model","");
+        String mode = getProperty("ro.product.model","");
         return mode;
     }
     public static String getUsid() {
-        String mode = get("ro.product.model","");
+        String mode = getProperty("ro.product.model","");
         return mode;
     }
     public static String getTFMiniDevice(){
-        String device = get("ro.tfmini.device","ttyS3");
+        String device = getProperty("ro.tfmini.device","ttyS3");
         return device.trim();
     }
     public static int getTFMiniEnabled() {
-        String value = get("persist.sys.tfmini.enable","1");
+        String value = getProperty("persist.sys.tfmini.enable","1");
         int enable = Integer.valueOf(value);
         return enable;
     }
     public static int getGsensorEnabled() {
-        String value = get("persist.sys.gsensor.enable","1");
+        String value = getProperty("persist.sys.gsensor.enable","1");
         int enable = Integer.valueOf(value);
         return enable;
     }
 
     public static void reboot (Context context){
-        Intent intent = new Intent(Intent.ACTION_REBOOT);
+        Intent intent = new Intent("android.intent.action.reboot");
+        /*
         intent.putExtra("nowait", 1);
         intent.putExtra("interval", 1);
         intent.putExtra("window", 0);
+        */
+        context.sendBroadcast(intent);
+    }
+
+    public static void sleep(Context context){
+        Intent intent = new Intent("android.action.adtv.sleep");
+        intent.putExtra("is_audio_mute", true);
+        context.sendBroadcast(intent);
+    }
+
+    public static void wakeup(Context context){
+        Intent intent = new Intent("android.action.adtv.wakeup");
         context.sendBroadcast(intent);
     }
 
@@ -671,5 +712,144 @@ public class CommonUtil {
         intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive");
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         mcontext.startActivity(intent);
+    }
+    public static void runCmd(String cmd){
+        try {
+            Process su = Runtime.getRuntime().exec("/system/xbin/su");
+            su.getOutputStream().write(cmd.getBytes());
+        } catch (IOException ex) {
+            // 赋予默认值
+            ex.printStackTrace();
+        }
+    }
+
+    public static  String execCommand(String command) {
+        Runtime runtime;
+        Process proc = null;
+        StringBuffer stringBuffer = null;
+        try {
+            runtime = Runtime.getRuntime();
+            proc = runtime.exec(command);
+            stringBuffer = new StringBuffer();
+            if (proc.waitFor() != 0) {
+                System.err.println("exit value = " + proc.exitValue());
+            }
+            BufferedReader in = new BufferedReader(new InputStreamReader(
+                    proc.getInputStream()));
+
+            String line = null;
+            while ((line = in.readLine()) != null) {
+                stringBuffer.append(line + " ");
+            }
+
+        } catch (Exception e) {
+            System.err.println(e);
+        } finally {
+            try {
+                proc.destroy();
+            } catch (Exception e2) {
+            }
+        }
+        return stringBuffer.toString();
+    }
+    /**
+     *
+     * @描述:获取wifi的mac地址
+     * @方法名: getWifiMac
+     * @param context
+     * @return
+     * @返回类型 String
+     * @创建人 gao
+     * @创建时间 2014年6月24日下午8:43:01
+     * @修改人 gao
+     * @修改时间 2014年6月24日下午8:43:01
+     * @修改备注
+     * @since
+     * @throws
+     */
+    private static String macAddress = "";
+    public static String getWifiMac(Context context) {
+        macAddress = "";
+        final WifiManager wifi = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+        if (wifi == null) {
+            return "";
+        }
+        WifiInfo info = wifi.getConnectionInfo();
+        macAddress = info.getMacAddress();
+        if (macAddress == null && !wifi.isWifiEnabled()) {
+            new Thread() {
+                @Override
+                public void run() {
+                    wifi.setWifiEnabled(true);
+                    for (int i = 0; i < 10; i++) {
+                        WifiInfo info = wifi.getConnectionInfo();
+                        macAddress = info.getMacAddress();
+                        if (macAddress != null) {
+                            break;
+                        }
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    wifi.setWifiEnabled(false);
+                }
+            }.start();
+
+        }
+
+        return macAddress;
+    }
+    public static String getProductName(){
+        String name = getProperty("ro.product.name","");
+        name = "WSFX-S85L";
+        return name;
+    }
+    /**
+     *
+     * @描述:判断当前是否连接网络（这里的网络指的是外网）
+     * @方法名: isInternetConnected
+     * @return
+     * @返回类型 boolean
+     * @创建人 gao
+     * @创建时间 2014年9月15日上午11:50:28
+     * @修改人 gao
+     * @修改时间 2014年9月15日上午11:50:28
+     * @修改备注
+     * @since
+     * @throws
+     */
+    public static boolean isInternetConnected(String urlStr) {
+        boolean result = false;
+        try {
+            // froyo之前的系统使用httpurlconnection存在bug
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.FROYO) {
+                System.setProperty("http.keepAlive", "false");
+            }
+
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);// 设置为允许输出
+            conn.setConnectTimeout(3 * 1000);// 3S超时
+
+            Map<String, List<String>> headerMap = conn.getHeaderFields();
+            if (headerMap != null) {
+                Iterator<String> iterator = headerMap.keySet().iterator();
+                if (iterator==null) {
+                    System.err.println("iterator==null");
+                    System.out.println("iterator==null");
+                }
+                while (iterator.hasNext()) {
+                    result = true;
+                    break;
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return result;
     }
 }

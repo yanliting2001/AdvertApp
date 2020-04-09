@@ -1,0 +1,38 @@
+<resources>
+
+    <!-- Default screen margins, per the Android Design guidelines. -->
+	<dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+	<dimen name="fast_link_item_width">200dp</dimen>
+    <dimen name="fast_link_item_height">250dp</dimen>
+	<dimen name="fast_link_item_inner_height">61dp</dimen>
+    <dimen name="fast_link_item_snapshot_corner">5dp</dimen>
+    <dimen name="fast_link_item_line_space">30dp</dimen>
+    <dimen name="common_focus_font_size">26sp</dimen>
+    <dimen name="common_unfocus_font_size">20sp</dimen>
+    <dimen name="account_unfocus_font_size">24sp</dimen>
+    
+    <!-- the system_setting maginleft increase 260dp-->
+    <dimen name="sys1">0dp</dimen>
+    <dimen name="sys2">260dp</dimen>
+    <dimen name="sys3">520dp</dimen>
+    <dimen name="sys4">780dp</dimen>
+    <dimen name="sys5">1040dp</dimen>
+    <dimen name="sys6">1300dp</dimen>
+    <dimen name="sys7">1560dp</dimen>
+    
+	<dimen name="about_left">150dp</dimen>
+     
+	<!-- the page BigTitle littleTitle -->
+	<dimen name="page_BigTitle_size">42sp</dimen>
+	<dimen name="page_littleTitle_size">20sp</dimen>
+     
+	<dimen name="sys_main_item_width">224dp</dimen>
+	<dimen name="sys_main_item_height">322dp</dimen>
+       
+	<dimen name="about_text_size">23sp</dimen>
+	<dimen name="play_text_size">28sp</dimen>
+	<dimen name="comm_text_size">28sp</dimen>
+	<dimen name="comm_selected_text_size">34sp</dimen>
+     
+</resources>
