@@ -979,8 +979,6 @@ public class UpgradeService extends Service {
                                 }
                                 else if(dataItem.getEventID().equals("1007")) {
                                     List<PowerOnOffData> list = new ArrayList<>();
-                                    RingLog.d(TAG,"eventId = " + dataItem.getEventID());
-                                    RingLog.d(TAG,"eventData = " + dataItem.getEventData().toString());
                                     if(dataItem.getEventData().getClass().equals(list.getClass())){
                                         String eventDataString = dataItem.getEventData().toString();
                                         Gson gson = new Gson();
@@ -992,6 +990,7 @@ public class UpgradeService extends Service {
                                             RingLog.d(TAG,"poweronoff startTime= " + powerOnOffData.getStartTime() + "endTime = " + powerOnOffData.getEndTime());
                                             long startTime = mAlarmEventManager.getPowerAlarmStartTime();
                                             long endTime = mAlarmEventManager.getPowerAlarmEndTime();
+                                            RingLog.d(TAG, "poweronoff saved startTime= "+startTime + "endTime = " + endTime);
                                             if(endTime!=powerOnOffData.getEndTime() || startTime!=powerOnOffData.getStartTime()){
                                                 //isPowerAlarmSet = false;
                                                 mAlarmEventManager.setPowerAlarmStatus(false);
@@ -1073,8 +1072,6 @@ public class UpgradeService extends Service {
                                     mHandler.sendEmptyMessageDelayed(PRINT_INFO_CMD, 1000*5);
                                 }else if(dataItem.getEventID().equals("1014")){/*联网时间*/
                                     List<NetworkOnOffData> list = new ArrayList<>();
-                                    RingLog.d(TAG,"eventId = " + dataItem.getEventID());
-                                    RingLog.d(TAG,"eventData = " + dataItem.getEventData().toString());
                                     if(dataItem.getEventData().getClass().equals(list.getClass())) {
                                         String eventDataString = dataItem.getEventData().toString();
                                         Gson gson = new Gson();
@@ -1090,9 +1087,9 @@ public class UpgradeService extends Service {
                                             RingLog.d(TAG, "networkon saved startTime= "+startTime + "endTime = " + endTime);
                                             if (endTime != networkOnOffData.getNetworkEndTime() || startTime != networkOnOffData.getNetworkStartTime()) {
                                                 isNetworkAlarmSet = false;
-                                                mAlarmEventManager.setPowerAlarmStatus(false);
+                                                mAlarmEventManager.setNetWorkAlarmStatus(false);
                                             }
-                                            if (mAlarmEventManager.getPowerAlarmStatus() == false) {
+                                            if (mAlarmEventManager.getNetWorkAlarmStatus() == false) {
                                                 //EventBus.getDefault().post(new AppEvent(AppEvent.NETWORK_ONOFF_ALARM_EVENT, networkOnOffData));
                                                 //isNetworkAlarmSet = true;
                                                 mAlarmEventManager.SetNetworkAlarm(networkOnOffData.getNetworkStartTime(),networkOnOffData.getNetworkEndTime());

@@ -8,6 +8,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
@@ -17,10 +18,11 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.grandartisans.advert.R;
+import com.grandartisans.advert.interfaces.IMultKeyTrigger;
 import com.grandartisans.advert.popupwindow.UpdateSureOrNotPop;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.DecodeImgUtil;
-import com.grandartisans.advert.utils.SystemInfoManager;
+import com.grandartisans.advert.utils.MyMultKeyTrigger;
 import com.grandartisans.advert.utils.Utils;
 
 public class About extends Activity{
@@ -31,6 +33,8 @@ public class About extends Activity{
 	private UpdateSureOrNotPop mUpdateSureOrNotPop = null;
 	private Bitmap b;
 	private RelativeLayout main_rl;
+
+	private IMultKeyTrigger multKeyTrigger= new MyMultKeyTrigger(this);
 
 		Handler h = new Handler(){
 			public void handleMessage(android.os.Message msg) {
@@ -64,6 +68,46 @@ public class About extends Activity{
 			super.onDestroy();
 			if(b!=null) b.recycle();
 		}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		// TODO Auto-generated method stub
+		if(event.getAction() == KeyEvent.ACTION_DOWN){
+			if(handlerMultKey(keyCode,event)){
+				startMyApp(About.this,"app_browser");
+				return true;
+			}
+		}
+		return super.onKeyDown(keyCode, event);
+	}
+
+	public boolean handlerMultKey(int keyCode, KeyEvent event) {
+		boolean vaildKey = false;
+		if ((keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+				|| keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)
+				&& multKeyTrigger.allowTrigger()) {
+			// 是否是有效按键输入
+			vaildKey = multKeyTrigger.checkKey(keyCode, event.getEventTime());
+			// 是否触发组合键
+			if (vaildKey && multKeyTrigger.checkMultKey()) {
+				//执行触发
+				multKeyTrigger.onTrigger();
+				//触发完成后清除掉原先的输入
+				multKeyTrigger.clearKeys();
+				return true;
+			}
+
+		}
+		return false;
+	}
+
+	private void startMyApp(Context context, String mode) {
+		Intent it = new Intent();
+		it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+		it.setClass(context, MyAppActivity.class);
+		it.putExtra("appmode", mode);
+		context.startActivity(it);
+	}
 		
 		private void initView(){
 			box_name = (TextView) findViewById(R.id.box_name);

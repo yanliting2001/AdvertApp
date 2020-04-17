@@ -373,6 +373,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					mProjectManager.WakeUpProject();
 				mAlarmEventManager.setPowerAlarmStatus(false);
 				mAlarmEventManager.setNetWorkAlarmStatus(false);
+				CommonUtil.runCmd("ifconfig eth0 up");//打开有线网络
 				mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*5);
 				mHandler.sendEmptyMessageDelayed(SET_NETWORK_ALARM_CMD,1000*60*5);
 				isPowerOff = false;
@@ -732,30 +733,29 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			CommonUtil.setScreenVideoMode("1");
 		}
 		String status = DevRing.cacheManager().spCache("PowerStatus").getString("status","on");
+		Log.i(TAG,"surfaceCreated power status is :" + status);
 		if(status.equals("off")){
 			handler.post(runableSetPowerOff);
-		}else{
+		}else {
 			mProjectManager.WakeUpProject();
-		}
-        onResumeEvent();
-		if(activate_started == false) {
-			mHandler.sendEmptyMessage(START_PLAYER_CMD);
-			if(mMode.equals("GAPEDS4A4") || mMode.equals("GAPEDS4A6")||
-					mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
-				mHandler.sendEmptyMessageDelayed(START_OPEN_SERIALPORT, 5 * 1000);
-			}else{
-				if(mElevatorDoorManager!=null)
-					mElevatorDoorManager.openSerialPort();
+			onResumeEvent();
+			if (activate_started == false) {
+				mHandler.sendEmptyMessage(START_PLAYER_CMD);
+				if (mMode.equals("GAPEDS4A4") || mMode.equals("GAPEDS4A6") ||
+						mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
+					mHandler.sendEmptyMessageDelayed(START_OPEN_SERIALPORT, 5 * 1000);
+				} else {
+					if (mElevatorDoorManager != null)
+						mElevatorDoorManager.openSerialPort();
 
+				}
+				activate_started = true;
+			} else {
+				mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD, 1000);
+				if (mElevatorDoorManager != null)
+					mElevatorDoorManager.openSerialPort();
 			}
-			activate_started =true;
 		}
-		else{
-			mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD,1000);
-			if(mElevatorDoorManager!=null)
-				mElevatorDoorManager.openSerialPort();
-		}
-		Log.i(TAG,"surfaceCreated");
 	}
 
 	@Override
@@ -879,17 +879,18 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		Log.i(TAG,"onKeyDown keyCode = " + keyCode);
 		if(event.getAction() == KeyEvent.ACTION_DOWN){
 			if(handlerMultKey(keyCode,event)){
-				startMyApp(MediaPlayerActivity.this,"app_browser");
+				//startMyApp(MediaPlayerActivity.this,"app_browser");
+				startSysSetting(MediaPlayerActivity.this);
 				return true;
 			}
 		}
 
 		if(keyCode == KeyEvent.KEYCODE_MENU) {
 			menuKeyPressedCount +=1;
-			startSysSetting(MediaPlayerActivity.this);
+			//startSysSetting(MediaPlayerActivity.this);
 		}else if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
 			//startMyApp(MediaPlayerActivity.this,"app_browser");
-			startSysSetting(MediaPlayerActivity.this);
+
 		}
 		else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
 			return true;
