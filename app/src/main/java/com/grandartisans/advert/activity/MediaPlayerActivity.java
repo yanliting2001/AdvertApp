@@ -182,6 +182,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 	private final int RECORDER_FINISHED_CMD = 100035;
 	private final int SET_NETWORK_ALARM_CMD = 100036;
+	private final int REBOOT_CMD = 100037;
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
@@ -312,6 +313,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					break;
 				case HIDE_UGRENT_INFO_CMD:
 					HideUgrentInfo();
+				case REBOOT_CMD:
+					CommonUtil.reboot(MediaPlayerActivity.this);
 					break;
 				default:
 					break;
@@ -371,16 +374,18 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			if(isPowerOff==true) {
 				if(mProjectManager!=null)
 					mProjectManager.WakeUpProject();
+				CommonUtil.runCmd("ifconfig eth0 up");//打开有线网络
 				mAlarmEventManager.setPowerAlarmStatus(false);
 				mAlarmEventManager.setNetWorkAlarmStatus(false);
-				CommonUtil.runCmd("ifconfig eth0 up");//打开有线网络
 				mHandler.sendEmptyMessageDelayed(SET_POWER_ALARM_CMD,1000*60*5);
 				mHandler.sendEmptyMessageDelayed(SET_NETWORK_ALARM_CMD,1000*60*5);
 				isPowerOff = false;
 				setScreen(1);
 				onVideoPlayCompleted(false);
+
 			}
 			lock.unlock();
+			//initPowerOnAlarm(13,10,00);
 			//initPowerOnAlarm(13,10,00);
 		}
 	};
@@ -750,6 +755,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 				}
 				activate_started = true;
+				//mHandler.sendEmptyMessageDelayed(REBOOT_CMD,1000*60*4);
 			} else {
 				mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD, 1000);
 				if (mElevatorDoorManager != null)
@@ -1214,13 +1220,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 				}else if("POWER_ON_ALARM".equals(event.getData())){
 					DevRing.cacheManager().spCache("PowerStatus").put("status","on");
-					handler.post(runableSetPowerOn);
-					//saveCurrentTime();
-					if (mCameraService != null && mCameraService.isRecording()) {
-						CameraService.cameraNeedStop = true;
-						mCameraService.cameraRecordStop();
-					}
+					//handler.post(runableSetPowerOn);
 					//CommonUtil.wakeup(MediaPlayerActivity.this);
+					mHandler.sendEmptyMessageDelayed(REBOOT_CMD,1000*5);
 					//CommonUtil.reboot(MediaPlayerActivity.this);
 				}else if("SET_WLAN_ON_ALARM".equals(event.getData())){
 					CommonUtil.runCmd("ifconfig eth0 up");
