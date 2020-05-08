@@ -183,6 +183,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int RECORDER_FINISHED_CMD = 100035;
 	private final int SET_NETWORK_ALARM_CMD = 100036;
 	private final int REBOOT_CMD = 100037;
+    private final int SEND_ENTER_KEY_CMD = 100038;
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
@@ -316,6 +317,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				case REBOOT_CMD:
 					CommonUtil.reboot(MediaPlayerActivity.this);
 					break;
+                case SEND_ENTER_KEY_CMD:
+                    CommonUtil.runCmd("input keyevent 23");
+                    CommonUtil.runCmd("input keyevent 23");
+                    break;
 				default:
 					break;
 			}
@@ -488,6 +493,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		Log.i(TAG,"onCreate");
         initBaseView();
 
+        /*音创990板卡启动时可能会出现system无响应情况，发送回车键消除*/
+        CommonUtil.runCmd("input keyevent 23");
+        CommonUtil.runCmd("input keyevent 23");
+
 		mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
 		mProjectManager.openProject();
 
@@ -530,7 +539,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		initEventBus();//注册事件接收
 
 		encApi = new Api();
-
+        mHandler.sendEmptyMessageDelayed(SEND_ENTER_KEY_CMD,1000*3);
 		/*
 		PicoClient.OnEventListener mPicoOnEventListener = new PicoClient.OnEventListener() {
 		    @Override
@@ -896,7 +905,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			//startSysSetting(MediaPlayerActivity.this);
 		}else if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
 			//startMyApp(MediaPlayerActivity.this,"app_browser");
-
 		}
 		else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
 			return true;
