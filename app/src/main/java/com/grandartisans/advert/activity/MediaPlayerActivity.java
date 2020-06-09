@@ -79,6 +79,7 @@ import com.grandartisans.advert.receiver.AlarmReceiver;
 import com.grandartisans.advert.recoder.RecorderManager;
 import com.grandartisans.advert.server.M3u8Server;
 import com.grandartisans.advert.service.CameraService;
+import com.grandartisans.advert.service.DownLoadService;
 import com.grandartisans.advert.service.NetworkService;
 import com.grandartisans.advert.service.UpgradeService;
 import com.grandartisans.advert.utils.ALFu700ProjectManager;
@@ -184,6 +185,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private final int SET_NETWORK_ALARM_CMD = 100036;
 	private final int REBOOT_CMD = 100037;
     private final int SEND_ENTER_KEY_CMD = 100038;
+    private final int PROJECT_WACKUP_CMD = 100039;
 	private String mMode ="";
 
 	static final int PLAYER_STATE_INIT = 0;
@@ -227,6 +229,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private ALFu700ProjectManager mProjectManager = null;
 
 	private AlarmEventManager mAlarmEventManager = null;
+	private int project_wackup_cmd_count = 0;
 
 	private  Api encApi=null;
 	private Handler mPlayerHandler = new Handler() {
@@ -321,6 +324,16 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                     CommonUtil.runCmd("input keyevent 23");
                     CommonUtil.runCmd("input keyevent 23");
                     break;
+				case PROJECT_WACKUP_CMD:
+					if(!isPowerOff){
+						if(mProjectManager!=null)
+							mProjectManager.WakeUpProject();
+					}
+					project_wackup_cmd_count++;
+					if(project_wackup_cmd_count<10) {
+						mHandler.sendEmptyMessageDelayed(PROJECT_WACKUP_CMD, 1000 * 5);
+					}
+					break;
 				default:
 					break;
 			}
@@ -377,8 +390,6 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		public void run() {
 			lock.lock();
 			if(isPowerOff==true) {
-				if(mProjectManager!=null)
-					mProjectManager.WakeUpProject();
 				CommonUtil.runCmd("ifconfig eth0 up");//打开有线网络
 				mAlarmEventManager.setPowerAlarmStatus(false);
 				mAlarmEventManager.setNetWorkAlarmStatus(false);
@@ -387,6 +398,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				isPowerOff = false;
 				setScreen(1);
 				onVideoPlayCompleted(false);
+				project_wackup_cmd_count = 0;
+				mHandler.sendEmptyMessage(PROJECT_WACKUP_CMD);
 
 			}
 			lock.unlock();
@@ -535,6 +548,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}else{
             Intent intentService = new Intent(MediaPlayerActivity.this,UpgradeService.class);
             startService(intentService);
+
+            Intent i = new Intent(MediaPlayerActivity.this, DownLoadService.class);
+            startService(i);
         }
 		initEventBus();//注册事件接收
 
@@ -751,7 +767,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		if(status.equals("off")){
 			handler.post(runableSetPowerOff);
 		}else {
-			mProjectManager.WakeUpProject();
+			//mProjectManager.WakeUpProject();
+			project_wackup_cmd_count = 0;
+			mHandler.sendEmptyMessage(PROJECT_WACKUP_CMD);
 			onResumeEvent();
 			if (activate_started == false) {
 				mHandler.sendEmptyMessage(START_PLAYER_CMD);
@@ -1228,9 +1246,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 
 				}else if("POWER_ON_ALARM".equals(event.getData())){
 					DevRing.cacheManager().spCache("PowerStatus").put("status","on");
-					//handler.post(runableSetPowerOn);
+					handler.post(runableSetPowerOn);
 					//CommonUtil.wakeup(MediaPlayerActivity.this);
-					mHandler.sendEmptyMessageDelayed(REBOOT_CMD,1000*5);
+					//mHandler.sendEmptyMessageDelayed(REBOOT_CMD,1000*5);
 					//CommonUtil.reboot(MediaPlayerActivity.this);
 				}else if("SET_WLAN_ON_ALARM".equals(event.getData())){
 					CommonUtil.runCmd("ifconfig eth0 up");
