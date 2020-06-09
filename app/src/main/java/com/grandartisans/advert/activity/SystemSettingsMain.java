@@ -32,6 +32,7 @@ import android.widget.TextView;
 import com.grandartisans.advert.R;
 import com.grandartisans.advert.model.AdvertModel;
 import com.grandartisans.advert.model.entity.UpgradeBean;
+import com.grandartisans.advert.service.DownLoadService;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.DecodeImgUtil;
 import com.grandartisans.advert.utils.DensityUtil;

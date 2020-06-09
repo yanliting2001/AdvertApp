@@ -32,6 +32,7 @@ import android.widget.TextView;
 import android.os.UserHandle;
 
 import com.grandartisans.advert.R;
+import com.grandartisans.advert.service.DownLoadService;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.DecodeImgUtil;
 
@@ -64,7 +65,7 @@ public class SystemUpdateSettings extends Activity {
 				updateButton_ll.setVisibility(View.GONE);
 				system_update_updating.setVisibility(View.VISIBLE);
 //				h.sendEmptyMessageDelayed(UPDATEPROGRESS, 1000);// update the progress by 3 seconds;
-				//startDownLoadService();
+				startDownLoadService();
 				break;
 			case CANCELUPDATE: //cancel update
 				
@@ -207,9 +208,12 @@ public class SystemUpdateSettings extends Activity {
 		
 		private void startDownLoadService(){
 			System.out.println("start Boot settings downloadService");
-			Intent i = new Intent();
-			i.setAction("android.intent.action.START_UPGRADE");
-			mContext.sendBroadcast(i);
+			//Intent i = new Intent();
+			//i.setAction("android.intent.action.START_UPGRADE");
+			//mContext.sendBroadcast(i);
+
+			Intent i = new Intent(mContext, DownLoadService.class);
+			startService(i);
 		}
 	private void register(){
 		if(mReceiver == null){

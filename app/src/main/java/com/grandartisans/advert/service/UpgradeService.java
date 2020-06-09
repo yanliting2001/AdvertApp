@@ -137,6 +137,7 @@ public class UpgradeService extends Service {
     private final int PRINT_INFO_CMD = 10012;
     private final int CHECK_PLAYER_ACTIVITY_CMD = 10013;
     private final int REPORT_TRAFFIC_CMD = 10014;
+    private final int WATCHDOG_KEEPALIVE_CMD = 10015;
 
     private final int UPLOAD_LOGCAT_INTERVAL_TIME = 10*60*1000;// 心跳检测发送时间
     private final int HEART_BEAT_INTERVAL_TIME = 60*1000;// 心跳检测发送时间
@@ -572,6 +573,10 @@ public class UpgradeService extends Service {
                     mHandler.removeMessages(REPORT_TRAFFIC_CMD);
                     mHandler.sendEmptyMessageDelayed(REPORT_TRAFFIC_CMD,10*60*1000);
                     break;
+                case WATCHDOG_KEEPALIVE_CMD:
+                    watchDogKeepAlive();
+                    mHandler.sendEmptyMessageDelayed(WATCHDOG_KEEPALIVE_CMD,1000*45);
+                    break;
                 default:
                     break;
             }
@@ -593,8 +598,12 @@ public class UpgradeService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        openWatchDog();
+
         LogcatHelper.init(getApplicationContext());
         logHelper = LogcatHelper.getInstance(getApplicationContext());
+
+
 
         mPlayListManager = AdPlayListManager.getInstance(getApplicationContext());
         if(SystemInfoManager.isClassExist("android.prj.PrjManager")) {
@@ -609,6 +618,7 @@ public class UpgradeService extends Service {
 
         mHandler.sendEmptyMessageDelayed(REPORT_TRAFFIC_CMD,10*60*1000);
         //mHandler.sendEmptyMessageDelayed(SHOW_TIME_INFO_CMD,3*1000);
+        mHandler.sendEmptyMessageDelayed(WATCHDOG_KEEPALIVE_CMD,1000*45);
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -616,6 +626,24 @@ public class UpgradeService extends Service {
     public void onDestroy() {
         super.onDestroy();
         //CommonUtil.reboot(getApplicationContext());
+    }
+    /*打开watchdog,停止系统喂狗，开始App喂狗*/
+    private void openWatchDog(){
+        Intent intent = new Intent("android.intent.action.watchdog");
+        intent.putExtra("val",1);
+        sendBroadcast(intent);
+    }
+    /*关闭watchdog,关闭App喂狗，系统开始喂狗*/
+    private void closeWatchDog(){
+        Intent intent = new Intent("android.intent.action.watchdog");
+        intent.putExtra("val",0);
+        sendBroadcast(intent);
+    }
+    /*App喂狗操作*/
+    private void watchDogKeepAlive(){
+        Intent intent = new Intent("android.intent.action.watchdog");
+        intent.putExtra("val",2);
+        sendBroadcast(intent);
     }
 
     private void LogcatDumpStart(){
@@ -1550,6 +1578,7 @@ public class UpgradeService extends Service {
                        // Log.d(TAG,"DownloadSuccess:" + filePath + "downloadmd5 = " + downloadmd5 + "fileMd5 = " + fileMd5 );
                         if(downloadmd5.equals(fileMd5)) {
                             if(type == 0) { /*apk 下载*/
+                                closeWatchDog(); //开始升级App前首先关闭watchdog,开始系统喂狗
                                 Utils.installSilently(filePath);
                             }else if(type ==1) {/*视频下载*/
                                 Message msg = new Message();

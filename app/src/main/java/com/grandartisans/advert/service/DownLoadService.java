@@ -55,7 +55,8 @@ public class DownLoadService extends Service{
 	private int forceUpdate = 0;
 	AsyncTask<String, Integer, File> mDownLoad = null;
 	private TimerTask updatechecktask;
-	private int manualupdate = 0; 
+	private int manualupdate = 0;
+	private boolean  isOnUpgradeing = false;
 	Handler mHandler = new Handler(){
 		public void handleMessage(android.os.Message msg) {
 			switch (msg.what) {
@@ -123,6 +124,7 @@ public class DownLoadService extends Service{
 			// TODO Auto-generated method stub
 			try {
 				SystemUpdateSettings.isUpdating = true;
+				isOnUpgradeing = true;
 				String firmwareUrl = arg0[0];
 				long startPosition = 0;
 				File file = new File(Contacts.DOWNLOAD_FILE_PATH_CACHE, Contacts.DEFAULT_DOWNLOAD_FILENAME_TEMP);
@@ -263,7 +265,7 @@ public class DownLoadService extends Service{
 						}else{
 							//GetRomUpgradeInfo1();
 							if(isUpgradeFileExist()){ //已存在升级文件，则删除
-								deleteUpdateFile();
+								//deleteUpdateFile();
 							}
 						}
 					}
@@ -337,7 +339,8 @@ public class DownLoadService extends Service{
         	}).create();
     		int winType=0;
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//6.0
-				winType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+				//winType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+				winType = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 			}else {
 				winType =  WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 			}
@@ -369,7 +372,7 @@ public class DownLoadService extends Service{
             }).create();
 			int winType=0;
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//6.0
-				winType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+				winType = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 			}else {
 				winType =  WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 			}
@@ -399,7 +402,7 @@ public class DownLoadService extends Service{
             }).create();
 			int winType=0;
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//6.0
-				winType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+				winType = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 			}else {
 				winType =  WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 			}
@@ -434,8 +437,10 @@ public class DownLoadService extends Service{
 		if(updatechecktask == null){
 			updatechecktask = new TimerTask() {
 				public void run() {
-				 	Log.d("DownloadService", "CheckUpgrade");	
-					GetRomUpgradeInfo();
+				 	Log.d("DownloadService", "CheckUpgrade");
+				 	if(isOnUpgradeing==false) {
+						GetRomUpgradeInfo();
+					}
 				}
 			};
 			Timer timer = new Timer();
@@ -455,7 +460,7 @@ public class DownLoadService extends Service{
         		}).create();
 				int winType=0;
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//6.0
-					winType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+					winType = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 				}else {
 					winType =  WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 				}
