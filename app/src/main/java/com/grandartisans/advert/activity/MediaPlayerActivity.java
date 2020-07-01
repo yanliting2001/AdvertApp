@@ -595,19 +595,26 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		textViewTime.setVisibility(View.GONE);
 		textViewTemp = (TextView) findViewById(R.id.tv_temperature);
 		textViewTempCode = (TextView) findViewById(R.id.tv_temperature_code);
-
-
 	}
 	private void initView(){
+		/*
 		View decorView = getWindow().getDecorView();
 		int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
 				| View.SYSTEM_UI_FLAG_FULLSCREEN;
 		decorView.setSystemUiVisibility(uiOptions);
+		*/
 		/*
+		Intent intent = new Intent("android.intent.action.hideNaviBar");
+		intent.putExtra("hide",true);
+		sendBroadcast(intent);
+		*/
+
+
 		Intent intent = new Intent("android.intent.always.hideNaviBar");
 		intent.putExtra("always",true);//true为一直隐藏，false为取消一直隐藏
 		sendBroadcast(intent);
-		*/
+
+
 
 		surfaceHolder_record = surface_record.getHolder();
 		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
@@ -1249,7 +1256,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					handler.post(runableSetPowerOn);
 					//CommonUtil.wakeup(MediaPlayerActivity.this);
 					//mHandler.sendEmptyMessageDelayed(REBOOT_CMD,1000*5);
-					//CommonUtil.reboot(MediaPlayerActivity.this);
+					CommonUtil.reboot(MediaPlayerActivity.this);
 				}else if("SET_WLAN_ON_ALARM".equals(event.getData())){
 					CommonUtil.runCmd("ifconfig eth0 up");
 				}else if("SET_WLAN_OFF_ALARM".equals(event.getData())){

@@ -575,7 +575,7 @@ public class UpgradeService extends Service {
                     break;
                 case WATCHDOG_KEEPALIVE_CMD:
                     watchDogKeepAlive();
-                    mHandler.sendEmptyMessageDelayed(WATCHDOG_KEEPALIVE_CMD,1000*45);
+                    mHandler.sendEmptyMessageDelayed(WATCHDOG_KEEPALIVE_CMD,1000*25);
                     break;
                 default:
                     break;
