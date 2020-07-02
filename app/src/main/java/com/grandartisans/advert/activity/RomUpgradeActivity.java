@@ -115,6 +115,7 @@ public class RomUpgradeActivity extends Activity{
 			@Override
 			public void onError(int i, String s) {
 				RingLog.d("system upgrade check error i = " + i + "msg = " + s );
+				startIpRemote();
 			}
 		},null);
 	}
