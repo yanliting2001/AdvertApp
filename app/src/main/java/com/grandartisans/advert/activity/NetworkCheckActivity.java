@@ -118,6 +118,7 @@ public class NetworkCheckActivity  extends Activity{
 		}else {
 			Log.i(TAG,"no network is connected ");
 			netWorkReceiver(mContext);
+			new Thread(runableInternetCheck).start();
 		}
 	}
 
