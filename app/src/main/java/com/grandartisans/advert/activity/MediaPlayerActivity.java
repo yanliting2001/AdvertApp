@@ -510,8 +510,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         CommonUtil.runCmd("input keyevent 23");
         CommonUtil.runCmd("input keyevent 23");
 
-		mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
-		mProjectManager.openProject();
+		//mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
+		if(mProjectManager!=null)
+			mProjectManager.openProject();
 
         /*
 		AdvertApp app = (AdvertApp) getApplication();
@@ -546,6 +547,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mElevatorStatusManager.registerListener(mElevatorEventListener);
 			initTFMini();//初始化激光测距模块
 		}else{
+			gsensordefault = 200;
+			mElevatorStatusManager = new ElevatorStatusManager(this,mMode,gsensordefault);
+			mElevatorStatusManager.registerListener(mElevatorEventListener);
+			initTFMini();//初始化激光测距模块
+
             Intent intentService = new Intent(MediaPlayerActivity.this,UpgradeService.class);
             startService(intentService);
 
@@ -973,6 +979,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			if(prjmanager!=null) {
 				threshold_distance = Integer.valueOf(prjmanager.getDistance());
 			}
+			threshold_distance = 200;
 		}
 		mElevatorDoorManager = new ElevatorDoorManager(threshold_distance);
 		mElevatorDoorManager.registerListener(mElevatorDoorEventListener);
