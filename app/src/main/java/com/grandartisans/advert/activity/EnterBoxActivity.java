@@ -7,6 +7,7 @@ import com.grandartisans.advert.model.entity.post.ActiveCheckResultBean;
 import com.grandartisans.advert.utils.CommonUtil;
 import com.grandartisans.advert.utils.DecodeImgUtil;
 import com.grandartisans.advert.utils.EncryptUtil;
+import com.grandartisans.advert.utils.SystemInfoManager;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.http.support.observer.CommonObserver;
 import com.ljy.devring.other.RingLog;
@@ -80,7 +81,7 @@ public class EnterBoxActivity extends Activity{
 	}
 	private void checkActive(){
 		ActiveCheckParamsBean checkParams = new ActiveCheckParamsBean();
-		String deviceid = CommonUtil.getDeviceId();
+		String deviceid = SystemInfoManager.getDeviceId(getApplicationContext());
 		if(deviceid==null) deviceid = "";
 		checkParams.setDeviceClientid(deviceid.toUpperCase());
 		checkParams.setTimestamp(System.currentTimeMillis());
