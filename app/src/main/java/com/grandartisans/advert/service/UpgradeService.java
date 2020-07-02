@@ -761,13 +761,15 @@ public class UpgradeService extends Service {
             tokenParameter.setRqeuestUuid("false");
         }
         UserAgent useragent = new UserAgent();
+        /*
         String version = Utils.getAppVersionName(getApplicationContext(),"com.tofu.locationinfo");
         if(version.equals("30")){
             version = "1";
         }else if(version.equals("29") || version.equals("28")){
             version = "0";
         }
-        useragent.setAppVersionName(Utils.getAppVersionName((getApplicationContext()))+"."+version);
+        */
+        useragent.setAppVersionName(Utils.getAppVersionName((getApplicationContext())));
         useragent.setPlatformVersion(CommonUtil.getVersionInfo());
         tokenParameter.setUserAgent(useragent);
         
