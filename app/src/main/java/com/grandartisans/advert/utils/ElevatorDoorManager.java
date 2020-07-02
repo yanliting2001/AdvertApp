@@ -42,7 +42,8 @@ public class ElevatorDoorManager {
     }
     public void openSerialPort(){
         if (serialPortUtils != null) {
-            if (serialPortUtils.openSerialPort("/dev/" + CommonUtil.getTFMiniDevice()) == null){
+            if (serialPortUtils.openSerialPort("/dev/ttymxc0") == null){
+            //if (serialPortUtils.openSerialPort("/dev/" + CommonUtil.getTFMiniDevice()) == null){
 
             }
         }
