@@ -91,6 +91,7 @@ import com.grandartisans.advert.utils.ElevatorStatusManager;
 
 import com.grandartisans.advert.R;
 import com.grandartisans.advert.utils.MyMultKeyTrigger;
+import com.grandartisans.advert.utils.SubDisplayEngine;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
 import com.grandartisans.advert.utils.ViewUtils;
@@ -547,10 +548,12 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mElevatorStatusManager.registerListener(mElevatorEventListener);
 			initTFMini();//初始化激光测距模块
 		}else{
+			
 			gsensordefault = 200;
 			mElevatorStatusManager = new ElevatorStatusManager(this,mMode,gsensordefault);
 			mElevatorStatusManager.registerListener(mElevatorEventListener);
 			initTFMini();//初始化激光测距模块
+
 
             Intent intentService = new Intent(MediaPlayerActivity.this,UpgradeService.class);
             startService(intentService);
@@ -585,6 +588,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		pClient = new PicoClient(mPicoOnEventListener, null);
 		*/
 		//mHandler.sendEmptyMessage(START_REPORT_PLAYSTATUS_CMD);
+
+		SubDisplayEngine.getInstance(getApplicationContext());
 	}
 	private void initBaseView(){
 		relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
@@ -721,6 +726,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	private void initPlayer(Long posid){
         PlayingAdvert item  = mPlayListManager.getValidPlayUrl(posid,true);
         if(item!=null) {
+			PlayingAdvert subitem = mPlayListManager.getSubDisplayPlayUrl(posid,item.getAdvertid());
+			if(subitem!=null){
+				SubDisplayEngine.getInstance(getApplicationContext()).updateSubDisplay(subitem.getPath());
+			}else{
+				SubDisplayEngine.getInstance(getApplicationContext()).updateSubDisplay("");
+			}
+
 			String url = item.getPath();
 			Log.i(TAG,"player advertFile vType = " + item.getvType() + "url = " + item.getPath());
 			mPlayingAdType = item.getvType();
@@ -1470,6 +1482,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             for(int i=0;i<regionList.size();i++){
 				TemplateReginVo region = regionList.get(i);
                 String regLocation = region.getTemplateRegion().getLocation();
+                if(regLocation.equals("-1,-1")){
+                	continue;
+				}
                 String[] regLocations = regLocation.split(",");
                 String videoType = region.getTemplateRegion().getVideoType();
                 int regWidth = region.getTemplateRegion().getWidth();

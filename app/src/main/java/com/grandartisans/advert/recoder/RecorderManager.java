@@ -237,16 +237,31 @@ public class RecorderManager  {
         mediaRecorder = new MediaRecorder();
         mCamera.unlock();
         mediaRecorder.setCamera(mCamera);
+
+
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
 
         CamcorderProfile profile = CamcorderProfile.get(quality);
         profile.audioCodec=MediaRecorder.AudioEncoder.AAC;
         profile.videoBitRate = 1024 * 1024;
-        profile.videoFrameRate= 15;
+        profile.videoFrameRate= 30;
+        profile.videoFrameWidth=1280;
+        profile.videoFrameHeight = 720;
         mediaRecorder.setProfile(profile);
         Log.d(TAG,"RecorderManager prepareMediaRecorder set outputfile = " + fileName);
 
+        /*
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION);
+        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+
+        mediaRecorder.setVideoEncodingBitRate(10000000);
+        //mediaRecorder.setVideoFrameRate(30);
+        mediaRecorder.setVideoSize(1280, 720);
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        */
         mediaRecorder.setPreviewDisplay(surface);
         mediaRecorder.setOrientationHint(180);
         /*

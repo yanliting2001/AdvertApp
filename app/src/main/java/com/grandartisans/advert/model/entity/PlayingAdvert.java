@@ -13,6 +13,15 @@ public class PlayingAdvert {
     private long vType;
     private int duration;
     private boolean isEncrypt;
+    private long followAdvertId;
+
+    public long getFollowAdvertId() {
+        return followAdvertId;
+    }
+
+    public void setFollowAdvertId(long followAdvertId) {
+        this.followAdvertId = followAdvertId;
+    }
 
     public boolean isEncrypt() {
         return isEncrypt;

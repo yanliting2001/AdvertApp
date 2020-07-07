@@ -127,13 +127,7 @@ public class SerialPortUtils {
                 int size=0; //读取数据的大小
                 try {
                     size = inputStream.read(buffer,0,1);
-                    Log.i(TAG, "run recv data size = " + size);
-                    for(int i=0;i<size;i++) {
-                        Log.i(TAG, "run recv data：" + buffer[i]);
-                    }
                     if(size==1) {
-                       // Log.i(TAG, "run recv data：" + buffer[0]);
-                        /*
                         if(buffer[0]==0x59) {
                             while (size < 9) {
                                 size += inputStream.read(buffer, size, 9 - size);
@@ -144,11 +138,9 @@ public class SerialPortUtils {
                                 if (onDataReceiveListener != null)
                                     onDataReceiveListener.onDataReceive(buffer, size);
                             }
-
                         }else{
                             Log.i(TAG, "run: data head ：" + buffer[0] + "is error");
                         }
-                        */
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "run: 数据读取异常：" +e.toString());

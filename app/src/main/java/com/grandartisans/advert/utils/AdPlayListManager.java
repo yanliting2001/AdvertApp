@@ -152,6 +152,27 @@ public class AdPlayListManager {
         }
         return false;
     }
+    public PlayingAdvert getSubDisplayPlayUrl(Long positionId,Long adId){
+        int playindex = 0;
+        PlayingAdvert playAdvertItem = null;
+        if(mAdvertList!=null && mAdvertList.size()>0 && mScheduleIndex>=0) {
+            AdvertData advertData = mAdvertList.get(mScheduleIndex);
+            Map<Long,List<PlayingAdvert>> advertMap = advertData.getAdvertMap();
+            for (Map.Entry<Long, List<PlayingAdvert>> entry : advertMap.entrySet()) {
+                Long id = entry.getKey();
+                Log.i(TAG, "getValidPlayUrl mAdvertMap id = " + id);
+                adurls = advertMap.get(id);
+                if (adurls != null && adurls.size() > 0) {
+                    for (int i = 0; i < adurls.size(); i++) {
+                        playAdvertItem = adurls.get(i);
+                        Log.i(TAG, "followadvertID = " + playAdvertItem.getFollowAdvertId() + "adId = " + adId);
+                        if (playAdvertItem.getFollowAdvertId() == adId) return playAdvertItem;
+                    }
+                }
+            }
+        }
+        return null;
+    }
     public  PlayingAdvert  getValidPlayUrl(Long positionId,boolean checkTemplate) {
         String url=null;
         boolean urlvalid = false;
@@ -231,7 +252,7 @@ public class AdPlayListManager {
              playAdvertItem  = adurls.get(index);
             Log.i(TAG,"play advertitem "+ playAdvertItem.getPath() + "playindex = " +  playindex + "index = " + index + "path = " + playAdvertItem.getPath());
             Log.i(TAG,"play advertitem   = " +  playAdvertItem.getStartDate() + " " + playAdvertItem.getStartTime()+playAdvertItem.getEndDate() + " " + playAdvertItem.getEndTime());
-            if(playAdvertItem.getPath()!=null && !playAdvertItem.getPath().isEmpty()) {
+            if(playAdvertItem.getFollowAdvertId()==0 && playAdvertItem.getPath()!=null && !playAdvertItem.getPath().isEmpty()) {
                 if(playAdvertItem.getStartDate()!=null && !playAdvertItem.getStartDate().isEmpty()) {
                     if (CommonUtil.compareTimeState(playAdvertItem.getStartDate(),playAdvertItem.getStartTime(), playAdvertItem.getEndDate(),playAdvertItem.getEndTime())) {
                         url = playAdvertItem.getPath();

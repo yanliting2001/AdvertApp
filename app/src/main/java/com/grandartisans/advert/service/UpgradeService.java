@@ -1237,6 +1237,11 @@ public class UpgradeService extends Service {
                             item.setEndTime(endTime);
                             item.setDuration(advertFile.getVideoDuration());
                             item.setvType(advertFile.getVtype());
+                            if(advertFile.getFollowAdvertId()!=null) {
+                                item.setFollowAdvertId(advertFile.getFollowAdvertId());
+                            }else{
+                                item.setFollowAdvertId(0);
+                            }
                             adurls.add(item);
                         }
                         mAdMap.put(region.getId(),adurls);

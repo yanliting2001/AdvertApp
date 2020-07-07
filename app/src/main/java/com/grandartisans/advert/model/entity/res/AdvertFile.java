@@ -67,6 +67,16 @@ public class AdvertFile {
      */
     private Integer videoDuration;
 
+    public Long getFollowAdvertId() {
+        return followAdvertId;
+    }
+
+    public void setFollowAdvertId(Long followAdvertId) {
+        this.followAdvertId = followAdvertId;
+    }
+
+    private Long followAdvertId;
+
     public Long getId() {
         return id;
     }
