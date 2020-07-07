@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 25
+    compileSdkVersion 26
     defaultConfig {
         applicationId "com.station.advert"
         minSdkVersion 19
         //noinspection ExpiredTargetSdkVersion
-        targetSdkVersion 25
+        targetSdkVersion 26
         versionCode 85
         versionName "1.4.1"
         ndk {
