@@ -1,18 +1,23 @@
 package com.grandartisans.advert.utils;
 
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
 import android.view.Display;
+import android.view.View;
 import android.view.WindowManager;
 
+import com.grandartisans.advert.interfaces.IPlayEventListener;
+import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.view.SubDisplay;
+import com.grandartisans.advert.view.SubVideoDisplay;
 
 public class SubDisplayEngine {
     //获取涉笔上的屏幕
     private DisplayManager mDisPlayManager;
     private Display[] displays;//屏幕数组
-    private SubDisplay mSubDisplay;
+    private SubVideoDisplay mSubDisplay;
     private static SubDisplayEngine instance;
     public static SubDisplayEngine getInstance(Context context){
         if (instance == null) {
@@ -31,7 +36,7 @@ public class SubDisplayEngine {
         mDisPlayManager = (DisplayManager)context.getSystemService(Context.DISPLAY_SERVICE);
         displays = mDisPlayManager.getDisplays();
         if(null == mSubDisplay && displays.length>1){
-            mSubDisplay = new SubDisplay(context,displays[1]);
+            mSubDisplay = new SubVideoDisplay(context,displays[1]);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {//6.0
                 mSubDisplay.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
             }else {
@@ -42,8 +47,41 @@ public class SubDisplayEngine {
     }
     public void updateSubDisplay(String imgPath){
         if(mSubDisplay!=null) {
-            mSubDisplay.updateSubDisplay(imgPath);
+            //mSubDisplay.updateSubDisplay(imgPath);
         }
     }
-
+    public void onPlayerCmd(String cmd,String url){
+        if(mSubDisplay!=null)
+            mSubDisplay.onPlayerCmd(cmd,url);
+    }
+    public void playerAdvert(PlayingAdvert item){
+        if(mSubDisplay!=null){
+            mSubDisplay.playAdvert(item);
+        }
+    }
+    public void set_view_layout(long viewType, int width, int height, int left, int top,Long adposid){
+        if(mSubDisplay!=null) {
+            mSubDisplay.set_view_layout(viewType,width,height,left,top,adposid);
+        }
+    }
+    public void removeImageView() {
+        if(mSubDisplay!=null) {
+            mSubDisplay.removeImageView();
+        }
+    }
+    public int getPlayViewCount()
+    {
+        if(mSubDisplay!=null)
+            return mSubDisplay.getPlayViewCount();
+        return 0;
+    }
+    public View getPlayChildView(int index){
+        if(mSubDisplay!=null)
+            return mSubDisplay.getPlayChildView(index);
+        return null;
+    }
+    public void  registerPlayListener(IPlayEventListener listener){
+        if(mSubDisplay!=null)
+            mSubDisplay.registerPlayListener(listener);
+    }
 }
