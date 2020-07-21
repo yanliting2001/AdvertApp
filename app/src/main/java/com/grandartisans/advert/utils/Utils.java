@@ -5,12 +5,15 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.util.List;
 
@@ -217,5 +220,33 @@ public class Utils {
         }
         return result;
         */
+    }
+
+    public static String silentInstallApkByReflect(Context context ,String apkPath) {
+        String result = "false";
+        try {
+            PackageManager packageManager = context.getPackageManager();
+            Class<?> pmClz = packageManager.getClass();
+            if (Build.VERSION.SDK_INT >= 21) {
+                Class<?> aClass = Class.forName("android.app.PackageInstallObserver");
+                Constructor<?> constructor = aClass.getDeclaredConstructor();
+                constructor.setAccessible(true);
+                Object installObserver = constructor.newInstance();
+                Method method = pmClz.getDeclaredMethod("installPackage", Uri.class, aClass, int.class, String.class);
+                method.setAccessible(true);
+                method.invoke(packageManager, Uri.fromFile(new File(apkPath)), installObserver, 2, null);
+            } else {
+                Method method = pmClz.getDeclaredMethod("installPackage", Uri.class,
+                        Class.forName("android.content.pm.IPackageInstallObserver"), int.class, String.class);
+                method.setAccessible(true);
+                method.invoke(packageManager, Uri.fromFile(new File(apkPath)), null, 2, null);
+            }
+            result = "success";
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.i("silentInstallApk", e.getMessage());
+            result = e.toString();
+        }
+        return result;
     }
 }

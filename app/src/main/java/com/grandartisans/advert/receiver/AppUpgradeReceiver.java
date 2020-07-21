@@ -22,6 +22,7 @@ public class AppUpgradeReceiver extends BroadcastReceiver {
 		if ("android.intent.action.PACKAGE_REPLACED".equals(action)) {
 			String packageName = intent.getData().getSchemeSpecificPart();
 			if(packageName.equals(Utils.getAppPackageName(context))) {
+				/*
 				Intent it = new Intent(context, MediaPlayerActivity.class);
 				it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				context.startActivity(it);
@@ -29,10 +30,28 @@ public class AppUpgradeReceiver extends BroadcastReceiver {
 				Intent intentService = new Intent(context,UpgradeService.class);
 				context.startService(intentService);
 
+				 */
+				CommonUtil.reboot(context);
+				//restartAPP(context);
+				//System.exit(0);
+
 			}else if(packageName.equals("com.tofu.locationinfo")){
                 CommonUtil.reboot(context);
 			}
 
 		}
 	}
+
+
+	/**
+	 * 重启整个APP
+	 * @param context
+	 */
+	public static void restartAPP(Context context){
+		Intent intent = context.getPackageManager()
+				.getLaunchIntentForPackage(Utils.getAppPackageName(context));
+		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+		context.startActivity(intent);
+	}
+
 }

@@ -1719,7 +1719,9 @@ public class UpgradeService extends Service {
                         updatePlayListFilePath(filePath,fileMd5);
                         Log.d(TAG, "Download File finished filePath :" + filePath);
                     }else if(type == 0) { /*apk 下载*/
-                        Utils.installSilently(filePath);
+                        Log.i(TAG,"DownloadSuccess:" + "install siletly filePath = " + filePath);
+                        //Utils.installSilently(filePath);
+                        Utils.silentInstallApkByReflect(getApplicationContext(),filePath);
                     }
                 }
             }
