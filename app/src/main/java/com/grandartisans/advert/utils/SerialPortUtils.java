@@ -13,7 +13,7 @@ public class SerialPortUtils {
     private final String TAG = "SerialPortUtils";
     //private String path = "/dev/ttyUSB0";
     //private String path = "/dev/ttyS3";
-    private int baudrate = 115200;
+    //private int baudrate = 115200;
     public boolean serialPortStatus = false; //是否打开串口标志
     public String data_;
     public boolean threadStatus; //线程状态，为了安全终止线程
@@ -28,7 +28,7 @@ public class SerialPortUtils {
      * 打开串口
      * @return serialPort串口对象
      */
-    public SerialPort openSerialPort(String path){
+    public SerialPort openSerialPort(String path,int baudrate){
         try {
             Log.i(TAG, "openSerialPort: device name =  " + path);
             serialPort = new SerialPort(new File(path),baudrate,0);
@@ -123,6 +123,19 @@ public class SerialPortUtils {
             while (!threadStatus){
                 //Log.d(TAG, "进入线程run");
                 //64   1024
+                int size=0; //读取数据的大小
+                byte[] buffer = new byte[64];
+                if (inputStream == null) return;
+                try {
+                    size = inputStream.read(buffer);
+                    if (size > 0) {
+                        if (onDataReceiveListener != null)
+                            onDataReceiveListener.onDataReceive(buffer, size);
+                    }
+                }catch (IOException e) {
+                    Log.e(TAG, "run: 数据读取异常：" +e.toString());
+                }
+                /*
                 byte[] buffer = new byte[9];
                 int size=0; //读取数据的大小
                 try {
@@ -133,8 +146,6 @@ public class SerialPortUtils {
                                 size += inputStream.read(buffer, size, 9 - size);
                             }
                             if (size > 0) {
-                                //Log.d(TAG, "run: 接收到了数据：" + changeTool.ByteArrToHex(buffer));
-                                // Log.i(TAG, "run: 接收到了数据大小：" + String.valueOf(size));
                                 if (onDataReceiveListener != null)
                                     onDataReceiveListener.onDataReceive(buffer, size);
                             }
@@ -145,6 +156,7 @@ public class SerialPortUtils {
                 } catch (IOException e) {
                     Log.e(TAG, "run: 数据读取异常：" +e.toString());
                 }
+                 */
             }
         }
     }
