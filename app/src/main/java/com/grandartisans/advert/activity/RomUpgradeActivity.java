@@ -47,7 +47,7 @@ public class RomUpgradeActivity extends Activity{
 	private void startIpRemote(){
 		Intent i = new Intent();
 		i.putExtra("type","guide");
-		i.setClass(this, ScreenSettingsActivity.class);
+		i.setClass(this, SetTFMiniActivity.class);
 		//i.putExtra("usbactivate", false);
 		startActivity(i);
 //		overridePendingTransition(R.anim.zoout, R.anim.zoin);
