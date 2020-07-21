@@ -18,6 +18,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Parcelable;
+import android.os.PowerManager;
 import android.os.StatFs;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
@@ -28,6 +29,7 @@ import android.view.inputmethod.InputMethodManager;
 
 import com.grandartisans.advert.R;
 import com.grandartisans.advert.activity.MediaPlayerActivity;
+import com.grandartisans.advert.app.constant.SystemConstants;
 import com.ljy.devring.other.RingLog;
 
 import java.io.BufferedReader;
@@ -412,10 +414,11 @@ public class CommonUtil {
         String device = getProperty("ro.tfmini.device","ttyS3");
         return device.trim();
     }
-    public static int getTFMiniEnabled() {
-        String value = getProperty("persist.sys.tfmini.enable","1");
-        int enable = Integer.valueOf(value);
-        return enable;
+    public static boolean getTFMiniEnabled() {
+        //String value = getProperty("persist.sys.tfmini.enable","1");
+        //int enable = Integer.valueOf(value);
+        //return enable;
+        return SystemConstants.TFMIN_MOUDLE_ENABLE;
     }
     public static int getGsensorEnabled() {
         String value = getProperty("persist.sys.gsensor.enable","1");
@@ -424,13 +427,17 @@ public class CommonUtil {
     }
 
     public static void reboot (Context context){
-        Intent intent = new Intent("android.intent.action.reboot");
+        //Intent intent = new Intent("android.intent.action.reboot");
         /*
         intent.putExtra("nowait", 1);
         intent.putExtra("interval", 1);
         intent.putExtra("window", 0);
         */
-        context.sendBroadcast(intent);
+        //context.sendBroadcast(intent);
+
+        PowerManager pManager=(PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        pManager.reboot("");
+
     }
 
     public static void sleep(Context context){
