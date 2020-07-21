@@ -29,6 +29,7 @@ import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.utils.DecodeImgUtil;
 import com.ljy.devring.other.RingLog;
 import com.pili.pldroid.player.PLMediaPlayer;
+import com.westone.cryptoSdk.Api;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,10 +83,12 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mViewLayout = getLayoutInflater().inflate(R.layout.activity_suface_player_test, null);
-        setContentView(mViewLayout);
+        setContentView(R.layout.activity_suface_player_test);
+        findViews();
+        //mViewLayout = getLayoutInflater().inflate(R.layout.activity_suface_player_test, null);
+        //setContentView(mViewLayout);
         //We need to wait till the view is created so we can flip it and set the width & height dynamically
-        mViewLayout.getViewTreeObserver().addOnGlobalLayoutListener(new SubVideoDisplay.OnGlobalLayoutListener());
+       // mViewLayout.getViewTreeObserver().addOnGlobalLayoutListener(new SubVideoDisplay.OnGlobalLayoutListener());
     }
     private class OnGlobalLayoutListener implements ViewTreeObserver.OnGlobalLayoutListener{
         @Override
@@ -93,18 +96,18 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
             //height is ready
             mViewLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
 
+            //int width = 1280;
+            //int height = 800;
             int width = mViewLayout.getWidth();
             int height = mViewLayout.getHeight();
-
-            mViewLayout.setTranslationX((width - height) / 2);
-            mViewLayout.setTranslationY((height - width) / 2);
+            Log.i(TAG,"mViewLayout width = " + width + "height=" + height);
+            //mViewLayout.setTranslationX((width - height) / 2);
+            //mViewLayout.setTranslationY((height - width) / 2);
             //mViewLayout.setRotation(90.0f);
 
             ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams( height, width);
-
             // Inflate the layout.
             setContentView(mViewLayout, lp);
-
             findViews();
         }
     }
@@ -123,7 +126,9 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
     }
     @Override
     public void surfaceDestroyed(SurfaceHolder arg0) {
-
+        if(mPlayEventListener!=null) {
+            mPlayEventListener.onsurfaceDestroyed();
+        }
     }
     private void findViews(){
         //setContentView(R.layout.welcome_activity);
@@ -134,8 +139,11 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
         surfaceHolder.addCallback(this);
         surfaceHolder.setFormat(PixelFormat.RGBX_8888);
+        if(mPlayEventListener!=null) {
+            mPlayEventListener.onCompletion();
+        }
     }
-    public void playAdvert(String imgPath,int type){
+    public void playAdvert(Api encApi,String imgPath, int type){
         Log.i(TAG,"updateSubDisplay image path = " + imgPath);
         if(imgPath!=null && !imgPath.isEmpty()) {
             Bitmap bm = BitmapFactory.decodeFile(imgPath);
@@ -165,7 +173,7 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         mMediaPlayer.setOnPreparedListener(new PLMediaPlayer.OnPreparedListener(){
             @Override public void onPrepared(PLMediaPlayer mp,int preparedTime) {
                 mPlayerHandler.removeMessages(CHECK_PLAYER_START_CMD);
-                Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight() + "screenStatus = " + getScreenStatus());
+                Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight());
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                 //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
                 onPlayerCmd("start","");
@@ -212,7 +220,7 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
             e.printStackTrace();
         }
     }
-    public void playAdvert(PlayingAdvert item){
+    public void playAdvert(Api encApi,PlayingAdvert item){
         if(item!=null) {
             long type = item.getvType();
             if(item.getvType()==2) { //视频广告
@@ -220,7 +228,7 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
                 onPlayerCmd("source",item.getPath());
             }else if(item.getvType()==1) {
                 mImageMain.setVisibility(View.VISIBLE);
-                showImageWithPath(mImageMain,item.getPath(),item.getDuration(),item.isEncrypt());
+                showImageWithPath(encApi,mImageMain,item.getPath(),item.getDuration(),item.isEncrypt());
             }
         }
 
@@ -316,7 +324,7 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         setPlayerState(PLAYER_STATE_RELEASED);
     }
 
-    private void showImageWithPath(ImageView imageView, String path, long duration, boolean isEncrypt) {
+    private void showImageWithPath(Api encApi,ImageView imageView, String path, long duration, boolean isEncrypt) {
         if (path != null && !path.isEmpty()) {
             //File file = new File(path);
             //Glide.with(getApplicationContext()).load(file).into(imageView);
