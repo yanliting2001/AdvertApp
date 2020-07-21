@@ -176,6 +176,14 @@ public class SystemSettingsMain extends Activity {
 		overridePendingTransition(R.anim.zoout, R.anim.zoin);
 	}
 
+	private void startTFMini(){
+		Intent i = new Intent();
+		i.putExtra("source","system");
+		i.setClass(mContext, SetTFMiniActivity.class);
+		startActivity(i);
+		overridePendingTransition(R.anim.zoout, R.anim.zoin);
+	}
+
 	private void startScreenSettings(){
 		Intent i = new Intent();
 		//i.putExtra("type", "screen");
@@ -355,6 +363,7 @@ public class SystemSettingsMain extends Activity {
 				 startScreenSettings();
 				break;
 			case R.id.playSettings_ll:
+				startTFMini();
 				break;
 			case R.id.gsensorSettings_ll:
 				break;
