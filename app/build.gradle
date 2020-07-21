@@ -7,8 +7,8 @@ android {
         minSdkVersion 19
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 26
-        versionCode 85
-        versionName "1.4.1"
+        versionCode 87
+        versionName "1.4.3"
         ndk {
             abiFilters "armeabi-v7a","arm64-v8a"
         }
@@ -69,4 +69,5 @@ dependencies {
     compile 'com.android.support:multidex:1.0.1'
     compile files('libs/pldroid-player-1.6.0.jar')
     compile 'com.github.yangjie10930:EpMedia:v0.9.5'
+    implementation 'com.tencent:mmkv-static:1.2.1'
 }

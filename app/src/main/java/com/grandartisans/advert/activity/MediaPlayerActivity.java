@@ -113,7 +113,7 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import gartisans.hardware.pico.PicoClient;
 
-public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback{
+public class MediaPlayerActivity extends Activity {
 	private final String TAG = "MediaPlayerActivity";
 	private SurfaceView surface_record;
 	private SurfaceHolder surfaceHolder_record;
@@ -241,7 +241,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
                     initAdFiles();
 					break;
 				case START_OPEN_SERIALPORT:
-					mElevatorDoorManager.openSerialPort();
+					//mElevatorDoorManager.openSerialPort();
 					break;
 				case START_REPORT_EVENT_CMD:
 					ReportPlayRecordAll();
@@ -268,8 +268,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 					initCameraService();
 					break;
 				case SET_LIFT_STOP_CMD:
-					//setLiftState(LIFT_STATE_STOP);
-					setScreenOff(false);
+					//setScreenOff(false);
 					break;
 				case START_FIRST_RECORD_CMD:
 					startFirstRecord();
@@ -400,12 +399,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         CommonUtil.runCmd("input keyevent 23");
         CommonUtil.runCmd("input keyevent 23");
 
-		//mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
-		if(mProjectManager!=null)
-			mProjectManager.openProject();
+		mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
 
-		mSubDisplayEngine = SubDisplayEngine.getInstance(getApplicationContext());
-		mSubDisplayEngine.registerPlayListener(mPlayEventListener);
 
         /*
 		AdvertApp app = (AdvertApp) getApplication();
@@ -496,12 +491,11 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		textViewTempCode = (TextView) findViewById(R.id.tv_temperature_code);
 	}
 	private void initView(){
-		/*
 		View decorView = getWindow().getDecorView();
 		int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
 				| View.SYSTEM_UI_FLAG_FULLSCREEN;
 		decorView.setSystemUiVisibility(uiOptions);
-		*/
+
 		/*
 		Intent intent = new Intent("android.intent.action.hideNaviBar");
 		intent.putExtra("hide",true);
@@ -518,6 +512,8 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		surfaceHolder_record = surface_record.getHolder();
 
 		//surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
+
 		initAdView();
 
 		AdvertInfoData data = mPlayListManager.getAdvertInfo();
@@ -551,9 +547,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			PlayingAdvert subitem = mPlayListManager.getSubDisplayPlayUrl(posid,item.getAdvertid());
 			if(subitem!=null){
 				mImageMain.setVisibility(View.VISIBLE);
-				Bitmap bm = BitmapFactory.decodeFile(subitem.getPath());
-				if(bm!=null) mImageMain.setImageBitmap(bm);
-				//showImageWithPath(mImageMain,subitem.getPath(),subitem.getDuration(),subitem.isEncrypt());
+				showImageWithPath(mImageMain,subitem.getPath(),subitem.getDuration(),subitem.isEncrypt());
 
 				RingLog.d(TAG, "remainingTime mPausePlayTime " + mStartPlayTime);
 			}
@@ -563,7 +557,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mPlayingAdType = item.getvType();
 			mPlayedTime = 0L;
 			if(mSubDisplayEngine!=null) {
-				mSubDisplayEngine.playerAdvert(item);
+				mSubDisplayEngine.playerAdvert(encApi,item);
 			}
 
 			int duration = item.getDuration();
@@ -588,15 +582,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			setScreenOff(false);
 		}
 	}
-	@Override
-	public void surfaceChanged(SurfaceHolder holder,  int format, int width,int height) {
-		// TODO 自动生成的方法存根
-		Log.i(TAG,"surfaceChanged111 format = " + format + "width = "  + width  + "height = " + height);
-		//holder.setFixedSize(width, height);
-	}
 
-	@Override
-	public void surfaceCreated(SurfaceHolder arg0) {
+
+	public void surfaceCreated() {
 		//然后初始化播放手段视频的player对象
 		//initPlayer();
 		surfaceDestroyedFlag = false;
@@ -613,27 +601,26 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			mHandler.sendEmptyMessage(PROJECT_WACKUP_CMD);
 			onResumeEvent();
 			if (activate_started == false) {
-				mHandler.sendEmptyMessage(START_PLAYER_CMD);
+				mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD, 3000);
 				if (mMode.equals("GAPEDS4A4") || mMode.equals("GAPEDS4A6") ||
 						mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
 					mHandler.sendEmptyMessageDelayed(START_OPEN_SERIALPORT, 5 * 1000);
 				} else {
-					if (mElevatorDoorManager != null)
-						mElevatorDoorManager.openSerialPort();
+					//if (mElevatorDoorManager != null)
+					//	mElevatorDoorManager.openSerialPort();
 
 				}
 				activate_started = true;
 				//mHandler.sendEmptyMessageDelayed(REBOOT_CMD,1000*60*4);
 			} else {
 				mHandler.sendEmptyMessageDelayed(START_PLAYER_CMD, 1000);
-				if (mElevatorDoorManager != null)
-					mElevatorDoorManager.openSerialPort();
+				//if (mElevatorDoorManager != null)
+					//mElevatorDoorManager.openSerialPort();
 			}
 		}
 	}
 
-	@Override
-	public void surfaceDestroyed(SurfaceHolder arg0) {
+	public void surfaceDestroyed() {
 		// TODO 自动生成的方法存根
 		Log.i(TAG,"surfaceDestroyed");
 		surfaceDestroyedFlag = true;
@@ -656,6 +643,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	protected void onPause() {
 		super.onPause();
 		Log.i(TAG,"onPause");
+		onPauseEvent();
 		unregisterAlarmReceiver();
 		//mHandler.sendEmptyMessageDelayed(ON_PAUSE_EVENT_CMD,1000);
 	}
@@ -668,7 +656,7 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				mMode.equals("GAPADS4A1") || mMode.equals("GAPADS4A2") || mMode.equals("GAPEDS4A3")) {
 			mHandler.removeMessages(START_OPEN_SERIALPORT);
 		}
-		if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
+		//if(mElevatorDoorManager!=null) mElevatorDoorManager.closeSeriaPort();
 		if(mSubDisplayEngine!=null)
 			mSubDisplayEngine.onPlayerCmd("release","");
 		//surface = null;
@@ -677,14 +665,20 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 			CameraService.cameraNeedStop = true;
 			mCameraService.cameraRecordPause();
 		}
+		mSubDisplayEngine.SubDisplayHide();
 		setScreen(1);
 	}
 	@Override
 	protected void onResume() {
 		super.onResume();
 		Log.i(TAG,"onResume");
+
+		mSubDisplayEngine = SubDisplayEngine.getInstance(getApplicationContext());
+		mSubDisplayEngine.registerPlayListener(mPlayEventListener);
+
 		initView();
 		registerAlarmReceiver();
+		onResumeEvent();
 	}
 
 	private void registerAlarmReceiver(){
@@ -701,17 +695,10 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void onResumeEvent(){
-        if(!mMode.equals("AOSP on p313")) {
-			if(prjmanager!=null) {
-				threshold_distance = Integer.valueOf(prjmanager.getDistance());
-			}
-			if(mElevatorDoorManager!=null)
-				mElevatorDoorManager.setDefaultDistance(threshold_distance);
-        }
 		if(prjmanager!=null) {
 			mInitZ = Float.valueOf(prjmanager.getGsensorDefault());
 		}
-		if(mElevatorDoorManager!=null)
+		if(mElevatorStatusManager!=null)
         	mElevatorStatusManager.setAccSensorDefaultValue(mInitZ);
 
         if ( mCameraService!=null && mCameraService.isRecording()) {
@@ -719,6 +706,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
         }else {
 			mHandler.sendEmptyMessageDelayed(START_CAMERACHECK_CMD, 30 * 1000);
 		}
+
+		if(mElevatorDoorManager!=null)
+			mElevatorDoorManager.registerListener(mElevatorDoorEventListener);
 	}
 	private IMultKeyTrigger multKeyTrigger= new MyMultKeyTrigger(this);
 	Handler h = new Handler(){
@@ -758,15 +748,26 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 				startSysSetting(MediaPlayerActivity.this);
 				return true;
 			}
-		}
 
-		if(keyCode == KeyEvent.KEYCODE_MENU) {
+		}
+		if(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT){
+			mProjectManager.sendRightSlow();
+		} else  if(keyCode == KeyEvent.KEYCODE_DPAD_LEFT){
+			mProjectManager.sendLeftSlow();
+		}else if(keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+			mProjectManager.sendUpSlow();
+		}else if(keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+			mProjectManager.sendDownSlow();
+		}
+		else if(keyCode == KeyEvent.KEYCODE_MENU) {
 			menuKeyPressedCount +=1;
-			//startSysSetting(MediaPlayerActivity.this);
+			mProjectManager.sendMenu();
 		}else if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
 			//startMyApp(MediaPlayerActivity.this,"app_browser");
+			mProjectManager.sendSelect();
 		}
 		else if(keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BACKSLASH){
+			mProjectManager.sendExit();
 			return true;
 		}
 		return super.onKeyDown(keyCode, event);
@@ -803,16 +804,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 	}
 
 	private void initTFMini() {
-		if(mMode.equals("AOSP on p313")) {
-			threshold_distance = DevRing.cacheManager().spCache("TFMini").getInt("threshold_distance",0);
-		}else {
-			if(prjmanager!=null) {
-				threshold_distance = Integer.valueOf(prjmanager.getDistance());
-			}
-			threshold_distance = 200;
-		}
-		mElevatorDoorManager = new ElevatorDoorManager(threshold_distance);
-		mElevatorDoorManager.registerListener(mElevatorDoorEventListener);
+		mElevatorDoorManager = ElevatorDoorManager.getInstance();
+		if(mElevatorDoorManager!=null)
+			mElevatorDoorManager.registerListener(mElevatorDoorEventListener);
 	}
 	private void startSysSetting(Context context) {
 		Intent intent = new Intent(context, SystemSettingsMain.class);
@@ -956,6 +950,13 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		Log.i(TAG,"setScreen enable :" + enable);
 		if(prjmanager!=null) {
 			prjmanager.setScreen(enable);
+		}
+		if(mProjectManager!=null) {
+			if(enable==0) {
+				mProjectManager.SleepProject();
+			}else{
+				mProjectManager.WakeUpProject();
+			}
 		}
 	}
 	private void setScreenOff(boolean continuePlay){
@@ -1140,12 +1141,16 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		}
 		@Override
 		public void onCompletion() {
-
+			initAdView();
 		}
 
 		@Override
 		public void onsurfaceCreated() {
-
+			surfaceCreated();
+		}
+		@Override
+		public void onsurfaceDestroyed(){
+			surfaceDestroyed();
 		}
 	};
 	AdListEventListener mAdListEventListener = new AdListEventListener() {
@@ -1251,6 +1256,9 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
 		public void onElevatorError(){
 			CommonUtil.reboot(MediaPlayerActivity.this);
 		}
+		@Override
+		public void onValueChanged(int value){}
+
 	};
 
 	RecorderEventListener mRecorderEventListener = new RecorderEventListener(){
@@ -1354,6 +1362,27 @@ public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callb
             }
         }
     }
+
+	private void showImageWithPath(ImageView imageView, String path, long duration, boolean isEncrypt) {
+		if (path != null && !path.isEmpty()) {
+			//File file = new File(path);
+			//Glide.with(getApplicationContext()).load(file).into(imageView);
+			if(isEncrypt) {
+				RingLog.d("dec file start ");
+				InputStream fis = encApi.DecryptFile(path);
+				if (fis != null) {
+					RingLog.d("dec file sucess ");
+					Bitmap bm = BitmapFactory.decodeStream(fis);
+					if (bm != null) imageView.setImageBitmap(bm);
+				} else {
+					RingLog.d("dec file failed ");
+				}
+			}else{
+				Bitmap bm = BitmapFactory.decodeFile(path);
+				if(bm!=null) imageView.setImageBitmap(bm);
+			}
+		}
+	}
 
     private void showImageWithIndex(ImageView imageView) {
 		Long posid = (Long)imageView.getTag(R.id.image_key);

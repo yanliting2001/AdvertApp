@@ -15,6 +15,7 @@ import com.grandartisans.advert.dbutils.dbutils;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.ljy.devring.DevRing;
 import com.ljy.devring.util.FileUtil;
+import com.tencent.mmkv.MMKV;
 
 import org.xutils.DbManager;
 import org.xutils.x;
@@ -46,7 +47,7 @@ public class AdvertApp extends Application {
         super.onCreate();
         sContext = getApplicationContext();
 
-
+        String rootDir = MMKV.initialize(this);
         initApps();
 
 
