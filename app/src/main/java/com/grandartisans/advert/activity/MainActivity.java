@@ -49,10 +49,11 @@ public class MainActivity extends Activity {
                 //mProjectManager.WakeUpProject();
                 //CommonUtil.runCmd("ifconfig eth0 down");
 
-
+                /*
                 Intent intent = new Intent("com.android.56iq.otaupgrade");
                 intent.putExtra("path", Contacts.DOWNLOAD_FILE_PATH_CACHE + "update11.zip");//otaPath为ota包所在的本地路径
                 sendBroadcast(intent);
+                */
 
                 /*
                 Intent intent = new Intent("android.action.adtv.sleep");
@@ -65,6 +66,8 @@ public class MainActivity extends Activity {
                 intent.putExtra("is_audio_mute", true);
                 sendBroadcast(intent);
                 */
+
+                CommonUtil.reboot(MainActivity.this);
 
             }
         });
