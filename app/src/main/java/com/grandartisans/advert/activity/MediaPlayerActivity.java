@@ -1263,8 +1263,17 @@ public class MediaPlayerActivity extends Activity {
 
 	RecorderEventListener mRecorderEventListener = new RecorderEventListener(){
 		@Override
-		public void onRecordFinished(String path){
-			ReportAdListUpdate(path);
+		public void onRecordFinished(String path,int cameraId){
+			int type = 1;
+            RingLog.d(TAG, "onRecordFinished cameraId= " + cameraId );
+			if(cameraId==0) {
+				type =1;
+				startSecondRecord();
+
+			}else {
+				type =2;
+			}
+			ReportAdListUpdate(path, type);
 		}
 		@Override
 		public void onRecordStart(){
@@ -1314,11 +1323,20 @@ public class MediaPlayerActivity extends Activity {
 			RingLog.d(TAG, "Camera numbers is " + cameraNumber);
 			if(cameraNumber>0) {
 				mCameraService.registerListener(mRecorderEventListener);
-				mCameraService.cameraRecordStart(surfaceHolder_record.getSurface());
+				mCameraService.cameraRecordStart(surfaceHolder_record.getSurface(),0);
 			}
 		}
 		//initCameraView();
-
+	}
+	private void startSecondRecord(){
+		if (mCameraService != null && !mCameraService.isRecording()) {
+			int cameraNumber = mCameraService.getCameraNumber();
+			RingLog.d(TAG, "Start Second Record Camera numbers is " + cameraNumber);
+			if(cameraNumber>1) {
+				mCameraService.registerListener(mRecorderEventListener);
+				mCameraService.cameraRecordStart(surfaceHolder_record.getSurface(),1);
+			}
+		}
 	}
 
     private TerminalAdvertPackageVo getScheduleTimesCache() {
@@ -1512,7 +1530,7 @@ public class MediaPlayerActivity extends Activity {
 			textViewTemp.setText(String.valueOf(celcius));
 		}
 	}
-	private void ReportAdListUpdate(String path)
+	private void ReportAdListUpdate(String path,int type)
 	{
 		EventParameter parameter = new EventParameter();
 		String 	deviceId = SystemInfoManager.getDeviceId(getApplicationContext());
@@ -1529,6 +1547,7 @@ public class MediaPlayerActivity extends Activity {
 		RecorderUpdateEventData eventData = new RecorderUpdateEventData();
 		eventData.setPath(path);
 		eventData.setTemplateid(0);
+		eventData.setType(type);
 		parameter.setEventData(eventData);
 		//parameter.setIp();
 		parameter.setTimestamp(System.currentTimeMillis());

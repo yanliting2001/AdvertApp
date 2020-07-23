@@ -122,9 +122,9 @@ public class RecorderManager  {
     }
 
     //点击对焦
-    public boolean initialize() {
+    public boolean initialize(int cameraId) {
         Log.d(TAG,"RecorderManager init open Camera");
-        mCamera = Camera.open(0);
+        mCamera = Camera.open(cameraId);
         if(mCamera==null){
             Log.e(TAG,"RecorderManager init open Camera error ");
             return false;

@@ -74,6 +74,7 @@ public class CameraService extends Service  {
     private static final String ACCESS_KEY_SECRET = "7aZBMS42QqguHTF5cq5uPD7tle8dK3";
     private static final String BUCKET_NAME = "gadsp";
     private static final String OBJECT_KEY_DIR = "advert/record/";
+    private static final String OBJECT_KEY_DIR_FACE = "advert/face/";
 
     private List<String> recordList = null;
     private int recordSegment = 0;
@@ -89,6 +90,8 @@ public class CameraService extends Service  {
     private Handler handler;
 
     private RecorderEventListener mRecorderEventListener = null;
+    private int mRecordingCameraId = 0;
+    private String objectKey = "";
 
     private Handler mHandler = new Handler() {
         public void handleMessage(Message paramMessage) {
@@ -146,9 +149,10 @@ public class CameraService extends Service  {
         return mRecorderManager.getCameraNumber();
     }
 
-    public void cameraRecordStart(Surface surface) {
+    public void cameraRecordStart(Surface surface,int cameraId) {
         RingLog.d(TAG, "Open Record Camera");
-        if(mRecorderManager.initialize()) {
+        mRecordingCameraId = cameraId;
+        if(mRecorderManager.initialize(cameraId)) {
             recordList.clear();
             recordSegment = 0;
             String fileName = getRecordName(recordSegment);
@@ -180,7 +184,7 @@ public class CameraService extends Service  {
         mRecorderManager.recordStop();
     }
     public void cameraRecordResume(Surface surface){
-        mRecorderManager.initialize();
+        mRecorderManager.initialize(mRecordingCameraId);
         recordSegment ++ ;
         String fileName = getRecordName(recordSegment);
         recordList.add(fileName);
@@ -195,7 +199,7 @@ public class CameraService extends Service  {
     private String getRecordName(int segnum){
         String fileName = "";
         if(CommonUtil.haveUdisk()) removeOlderFiles("/storage/udisk0",true);
-        deviceId = SystemInfoManager.readFromNandkey("usid");
+        deviceId = SystemInfoManager.getDeviceId(getApplicationContext());
         if (deviceId == null) {
             deviceId = "G50234001485210002";
         }
@@ -311,7 +315,11 @@ public class CameraService extends Service  {
         RingLog.d(TAG, "Upload Start");
         String date = getCurrentDate();
         //String fileName = deviceId + "_" + date + ".mp4";
-        final String objectKey = OBJECT_KEY_DIR + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId +getFileName()+ ".mp4";
+        if(mRecordingCameraId==0) {
+            objectKey =  OBJECT_KEY_DIR + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId + getFileName() + ".mp4";
+        }else {
+            objectKey =  OBJECT_KEY_DIR_FACE + mYear + "/" + mMonth + "/" + mDay + "/" + deviceId + getFileName() + ".mp4";
+        }
         String recordFilePath = recordPath + "/" + deviceId + ".mp4";
         RingLog.d(TAG, "File name: " + objectKey);
         PutObjectRequest put = new PutObjectRequest(BUCKET_NAME, objectKey, recordFilePath);
@@ -329,9 +337,12 @@ public class CameraService extends Service  {
             @Override
             public void onSuccess(PutObjectRequest request, PutObjectResult result) {
                 Log.d(TAG,"uploadSuccess");
-                if(mRecorderEventListener!=null) mRecorderEventListener.onRecordFinished(objectKey);
                 uploadSuccess = true;
                 isRecording = false;
+                if(mRecorderEventListener!=null){
+                    mRecorderEventListener.onRecordFinished(objectKey,mRecordingCameraId);
+                }
+
             }
 
             @Override
