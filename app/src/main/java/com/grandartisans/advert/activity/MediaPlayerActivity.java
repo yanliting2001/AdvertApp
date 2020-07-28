@@ -92,6 +92,7 @@ import com.grandartisans.advert.utils.ElevatorStatusManager;
 
 import com.grandartisans.advert.R;
 import com.grandartisans.advert.utils.MyMultKeyTrigger;
+import com.grandartisans.advert.utils.PlayerManager;
 import com.grandartisans.advert.utils.SubDisplayEngine;
 import com.grandartisans.advert.utils.SystemInfoManager;
 import com.grandartisans.advert.utils.Utils;
@@ -113,7 +114,7 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import gartisans.hardware.pico.PicoClient;
 
-public class MediaPlayerActivity extends Activity {
+public class MediaPlayerActivity extends Activity implements SurfaceHolder.Callback{
 	private final String TAG = "MediaPlayerActivity";
 	private SurfaceView surface_record;
 	private SurfaceHolder surfaceHolder_record;
@@ -224,7 +225,11 @@ public class MediaPlayerActivity extends Activity {
 
 	private  Api encApi=null;
 
+	private SurfaceView surface;
+	private SurfaceHolder surfaceHolder;
 	private SubDisplayEngine mSubDisplayEngine = null;
+	private PlayerManager mPlayerManager = null;
+	private int mPlayerIndex = 0;
 
 
 	private Handler mHandler = new Handler()
@@ -401,6 +406,8 @@ public class MediaPlayerActivity extends Activity {
 
 		mProjectManager  = ALFu700ProjectManager.getInstance(getApplicationContext());
 
+		mPlayerManager = PlayerManager.getInstance(MediaPlayerActivity.this);
+		mPlayerIndex = mPlayerManager.GetPlayer(MediaPlayerActivity.this);
 
         /*
 		AdvertApp app = (AdvertApp) getApplication();
@@ -478,6 +485,10 @@ public class MediaPlayerActivity extends Activity {
 
 	}
 	private void initBaseView(){
+		surface = (SurfaceView) findViewById(R.id.surface);
+		surfaceHolder = surface.getHolder();// SurfaceHolder是SurfaceView的控制接口
+		surfaceHolder.addCallback(this);
+		surfaceHolder.setFormat(PixelFormat.RGBX_8888);
 		mImageMain =(ImageView)findViewById(R.id.image_main);
 		surface_record = (SurfaceView) findViewById(R.id.surfaceview_record);
 		marqueeTextView = (MarqueeTextView) findViewById(R.id.tv_scroll);
@@ -546,10 +557,16 @@ public class MediaPlayerActivity extends Activity {
         if(item!=null) {
 			PlayingAdvert subitem = mPlayListManager.getSubDisplayPlayUrl(posid,item.getAdvertid());
 			if(subitem!=null){
-				mImageMain.setVisibility(View.VISIBLE);
-				showImageWithPath(mImageMain,subitem.getPath(),subitem.getDuration(),subitem.isEncrypt());
-
 				RingLog.d(TAG, "remainingTime mPausePlayTime " + mStartPlayTime);
+
+				if(subitem.getvType()==1) {
+					mImageMain.setVisibility(View.VISIBLE);
+					showImageWithPath(mImageMain, subitem.getPath(), subitem.getDuration(), subitem.isEncrypt());
+				}else {
+					mImageMain.setVisibility(View.GONE);
+					mPlayerManager.onPlayerCmd("reset", item.getPath(), mPlayerIndex);
+					mPlayerManager.onPlayerCmd("source", subitem.getPath(), mPlayerIndex);
+				}
 			}
 
 			String url = item.getPath();
@@ -581,6 +598,22 @@ public class MediaPlayerActivity extends Activity {
 		}else{
 			setScreenOff(false);
 		}
+	}
+
+	@Override
+	public void surfaceChanged(SurfaceHolder holder,  int format, int width,int height) {
+		// TODO 自动生成的方法存根
+		Log.i(TAG,"surfaceChanged format = " + format + "width = "  + width  + "height = " + height);
+		//holder.setFixedSize(width, height);
+	}
+
+	@Override
+	public void surfaceCreated(SurfaceHolder arg0) {
+		mPlayerManager.PlayerInit(MediaPlayerActivity.this,surfaceHolder,mPlayerIndex);
+	}
+	@Override
+	public void surfaceDestroyed(SurfaceHolder arg0) {
+
 	}
 
 
@@ -679,6 +712,7 @@ public class MediaPlayerActivity extends Activity {
 		initView();
 		registerAlarmReceiver();
 		onResumeEvent();
+
 	}
 
 	private void registerAlarmReceiver(){
@@ -1373,7 +1407,7 @@ public class MediaPlayerActivity extends Activity {
 					if(mSubDisplayEngine!=null)
 						mSubDisplayEngine.set_view_layout(adType, regWidth, regHeight, marginLeft,
 							marginTop, adPosId);
-					if(adType==2) {
+					if(adType==2 || adType == 3) {
 						mMainPositionId = adPosId;
 					}
 				}

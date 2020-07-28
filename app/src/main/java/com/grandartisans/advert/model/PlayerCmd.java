@@ -3,6 +3,8 @@ package com.grandartisans.advert.model;
 public class PlayerCmd
 {
     String cmd;
+    String url;
+    int index;
 
     public String getCmd() {
         return cmd;
@@ -20,5 +22,10 @@ public class PlayerCmd
         this.url = url;
     }
 
-    String url;
+    public int getIndex() {
+        return index;
+    }
+    public void setIndex(int index) {
+        this.index = index;
+    }
 }

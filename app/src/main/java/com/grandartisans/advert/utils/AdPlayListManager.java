@@ -188,9 +188,12 @@ public class AdPlayListManager {
                 Log.i(TAG, "getValidPlayUrl mAdvertMap id = " + id);
             }
             */
+
             adurls = advertMap.get(positionId);
+
             if (mAdvertIndex.containsKey(positionId))
                 playindex = mAdvertIndex.get(positionId);
+            Log.i(TAG, "getValidPlayUrl  positionId = " + positionId + "playindex = " + playindex);
             if(checkTemplate) {
                 if (playindex >= adurls.size()) {
                     if (needChangeTemplate()) {
@@ -199,7 +202,6 @@ public class AdPlayListManager {
                     }
                 }
             }
-            Log.i(TAG, "getValidPlayUrl  positionId = " + positionId + "playindex = " + playindex);
             if (adurls != null && adurls.size() > 0) {
                 //Log.i(TAG,"adurls size  = " + adurls.size() + "playindex = " + playindex);
                 //Log.i(TAG,"adurls_local size  = " + adurls_local.size() + "playindex = " + playindex);

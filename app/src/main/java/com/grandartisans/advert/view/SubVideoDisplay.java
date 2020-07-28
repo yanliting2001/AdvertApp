@@ -27,6 +27,7 @@ import com.grandartisans.advert.interfaces.IPlayEventListener;
 import com.grandartisans.advert.model.PlayerCmd;
 import com.grandartisans.advert.model.entity.PlayingAdvert;
 import com.grandartisans.advert.utils.DecodeImgUtil;
+import com.grandartisans.advert.utils.PlayerManager;
 import com.ljy.devring.other.RingLog;
 import com.pili.pldroid.player.PLMediaPlayer;
 import com.westone.cryptoSdk.Api;
@@ -48,32 +49,8 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
     private Bitmap defaultBitMap = null;
     private IPlayEventListener mPlayEventListener = null;
 
-    static final int PLAYER_STATE_INIT = 0;
-    static final int PLAYER_STATE_PREPARING = 1;
-    static final int PLAYER_STATE_PLAYING = 2;
-    static final int PLAYER_STATE_PAUSED = 3;
-    static final int PLAYER_STATE_STOPED = 4;
-    static final int PLAYER_STATE_RELEASED = 5;
-    private int mPlayState = PLAYER_STATE_INIT;
-
-    private final int AD_PLAYER_CMD = 100032;
-    private final int CHECK_PLAYER_START_CMD = 100033;
-
-        private Handler mPlayerHandler = new Handler() {
-        public void handleMessage(Message paramMessage) {
-            switch (paramMessage.what) {
-                case AD_PLAYER_CMD:
-                    PlayerCmd playerCmd = (PlayerCmd) paramMessage.obj;
-                    processPlayerCmd(playerCmd.getCmd(), playerCmd.getUrl());
-                    break;
-                case CHECK_PLAYER_START_CMD:
-                    if(getPlayerState()==PLAYER_STATE_PREPARING){
-                       // onVideoPlayCompleted(true);
-                    }
-                    break;
-            }
-        }
-    };
+    private PlayerManager mPlayerManager = null;
+    private int mPlayerIndex = 0;
 
     public SubVideoDisplay(Context outerContext, Display display) {
         super(outerContext, display);
@@ -85,6 +62,7 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_suface_player_test);
         findViews();
+
         //mViewLayout = getLayoutInflater().inflate(R.layout.activity_suface_player_test, null);
         //setContentView(mViewLayout);
         //We need to wait till the view is created so we can flip it and set the width & height dynamically
@@ -111,6 +89,7 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
             findViews();
         }
     }
+
     @Override
     public void surfaceChanged(SurfaceHolder holder,  int format, int width,int height) {
         // TODO 自动生成的方法存根
@@ -123,6 +102,10 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         if(mPlayEventListener!=null){
             mPlayEventListener.onsurfaceCreated();
         }
+
+        mPlayerManager = PlayerManager.getInstance(mContext);
+        mPlayerIndex = mPlayerManager.GetPlayer(mContext);
+        mPlayerManager.PlayerInit(mContext,surfaceHolder,mPlayerIndex);
     }
     @Override
     public void surfaceDestroyed(SurfaceHolder arg0) {
@@ -130,6 +113,8 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
             mPlayEventListener.onsurfaceDestroyed();
         }
     }
+
+
     private void findViews(){
         //setContentView(R.layout.welcome_activity);
         relativeLayout = (RelativeLayout) findViewById(R.id.rootframeview);
@@ -142,6 +127,10 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         if(mPlayEventListener!=null) {
             mPlayEventListener.onCompletion();
         }
+        /*
+        Log.i(TAG,"surface width = " + surface.getWidth() + "height = " + surface.getHeight());
+        set_view_layout(2,1280,720,100,0,0L);
+         */
     }
     public void playAdvert(Api encApi,String imgPath, int type){
         Log.i(TAG,"updateSubDisplay image path = " + imgPath);
@@ -154,78 +143,12 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
             main_ll.setBackground(bd);
         }
     }
-
-    /*
-     * 初始化播放首段视频的player
-     */
-    private void initFirstPlayer() {
-        mMediaPlayer = new PLMediaPlayer(mContext);
-        //mMediaPlayer.reset();
-        //mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        mMediaPlayer.setDisplay(surfaceHolder);
-        mMediaPlayer
-                .setOnCompletionListener(new PLMediaPlayer.OnCompletionListener() {
-                    @Override
-                    public void onCompletion(PLMediaPlayer mp) {
-                        //onVideoPlayCompleted(true);
-                    }
-                });
-        mMediaPlayer.setOnPreparedListener(new PLMediaPlayer.OnPreparedListener(){
-            @Override public void onPrepared(PLMediaPlayer mp,int preparedTime) {
-                mPlayerHandler.removeMessages(CHECK_PLAYER_START_CMD);
-                Log.i(TAG, "video width = " + mMediaPlayer.getVideoWidth() + "video height = " + mMediaPlayer.getVideoHeight());
-                //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-                //mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
-                onPlayerCmd("start","");
-                if(mPlayEventListener!=null){
-                    mPlayEventListener.onPrepared();
-                }
-
-            }
-        });
-
-        mMediaPlayer.setOnErrorListener(new PLMediaPlayer.OnErrorListener(){
-            @Override public boolean onError(PLMediaPlayer mp,int errorcode)
-            {
-                Log.d(TAG, "OnError - Error code: " + errorcode );
-                //onVideoPlayCompleted(false);
-                return false;
-            }
-
-        });
-
-        mMediaPlayer.setOnVideoSizeChangedListener(new PLMediaPlayer.OnVideoSizeChangedListener(){
-            @Override public void onVideoSizeChanged(PLMediaPlayer mp,int width,int height,int videoSar, int videoDen) {
-                Log.d(TAG, "setOnVideoSizeChangedListener  width: " + width + "height: " + height);
-                //surfaceHolder.setFixedSize(width,height);
-            }
-        });
-        setPlayerState(PLAYER_STATE_INIT);
-    }
-    private void setDataSource(String url) {
-        try {
-            //url = "http://test.res.dsp.grandartisans.cn/1d92cc66-d6f8-4776-b794-bb90e6683f43/playlist.m3u8";
-            Log.d(TAG, "start play: url = " + url );
-            mMediaPlayer.setDataSource(url);
-            try{
-                mMediaPlayer.prepareAsync();
-                setPlayerState(PLAYER_STATE_PREPARING);
-                //mPlayerHandler.sendEmptyMessageDelayed(CHECK_PLAYER_START_CMD,2*1000);
-            }catch(IllegalStateException e) {
-                //onPlayerCmd("release","");
-                //onVideoPlayCompleted(true);
-            }
-        } catch (IOException e) {
-            // TODO 自动生成的 catch 块
-            e.printStackTrace();
-        }
-    }
     public void playAdvert(Api encApi,PlayingAdvert item){
         if(item!=null) {
             long type = item.getvType();
             if(item.getvType()==2) { //视频广告
                 mImageMain.setVisibility(View.GONE);
-                onPlayerCmd("source",item.getPath());
+                mPlayerManager.onPlayerCmd("source",item.getPath(),mPlayerIndex);
             }else if(item.getvType()==1) {
                 mImageMain.setVisibility(View.VISIBLE);
                 showImageWithPath(encApi,mImageMain,item.getPath(),item.getDuration(),item.isEncrypt());
@@ -233,95 +156,8 @@ public class SubVideoDisplay extends Presentation implements SurfaceHolder.Callb
         }
 
     }
-    public void onPlayerCmd(String cmd,String url) {
-        PlayerCmd playerCmd = new PlayerCmd();
-        playerCmd.setCmd(cmd);
-        playerCmd.setUrl(url);
-        Message msg = new Message();
-        msg.what = AD_PLAYER_CMD;
-        msg.obj = playerCmd;
-        mPlayerHandler.sendMessage(msg);
-    }
-    private void processPlayerCmd(String cmd,String url){
-        Log.d(TAG,"processPlayerCmd cmd:" + cmd + "PlayerState :"  + getPlayerState());
-        if(cmd.equals("reset")){
-            if(getPlayerState()==PLAYER_STATE_PLAYING
-                    ||getPlayerState()==PLAYER_STATE_PAUSED){
-                PlayerStop();
-            }
-            PlayerRelease();
-            initFirstPlayer();
-        }else if(cmd.equals("source")){
-            if(getPlayerState()==PLAYER_STATE_INIT||getPlayerState()==PLAYER_STATE_STOPED) {
-                setDataSource(url);
-            }
-        }
-        else if(cmd.equals("start")){
-            if(getPlayerState()==PLAYER_STATE_PREPARING) {
-                PlayerStart();
-            }
-        }
-        else if(cmd.equals("pause")){
-            if(getPlayerState()==PLAYER_STATE_PLAYING){
-                PlayerPause();
-            }
-        }else if(cmd.equals("resume")) {
-            if(getPlayerState()==PLAYER_STATE_PAUSED){
-                PlayerResume();
-            }
-        }else if(cmd.equals("stop")){
-            if(getPlayerState()==PLAYER_STATE_PLAYING
-                    || getPlayerState()==PLAYER_STATE_PAUSED) {
-                PlayerStop();
-            }
-            setPlayerState(PLAYER_STATE_STOPED);
-        }else if(cmd.equals("release")){
-            if(getPlayerState()==PLAYER_STATE_PLAYING
-                    || getPlayerState()==PLAYER_STATE_PAUSED) {
-                PlayerStop();
-            }
-            PlayerRelease();
-        }
-
-    }
-    private void setPlayerState(int state){
-        mPlayState = state;
-    }
-    private int getPlayerState(){
-        return mPlayState;
-    }
-    private void PlayerStart(){
-        if(mMediaPlayer!=null){
-            mMediaPlayer.start();
-            setPlayerState(PLAYER_STATE_PLAYING);
-        }
-    }
-    private void PlayerPause(){
-        if(mMediaPlayer!=null) {
-            Log.d(TAG,"onPlayer Pause ");
-            mMediaPlayer.pause();
-            setPlayerState(PLAYER_STATE_PAUSED);
-        }
-    }
-    private void PlayerResume(){
-        if(mMediaPlayer!=null) {
-            mMediaPlayer.start();
-            Log.d(TAG,"onPlayer Resume isPlaying = " + mMediaPlayer.isPlaying() + "position = " + mMediaPlayer.getCurrentPosition() + "duration = " + mMediaPlayer.getDuration());
-            setPlayerState(PLAYER_STATE_PLAYING);
-        }
-    }
-    private void PlayerStop(){
-        if(mMediaPlayer!=null) {
-            mMediaPlayer.stop();
-        }
-        setPlayerState(PLAYER_STATE_STOPED);
-    }
-    private void PlayerRelease(){
-        if(mMediaPlayer!=null){
-            mMediaPlayer.release();
-            mMediaPlayer = null;
-        }
-        setPlayerState(PLAYER_STATE_RELEASED);
+    public void onPlayerCmd(String cmd,String url){
+        mPlayerManager.onPlayerCmd(cmd,url,mPlayerIndex);
     }
 
     private void showImageWithPath(Api encApi,ImageView imageView, String path, long duration, boolean isEncrypt) {
